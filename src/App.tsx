@@ -280,7 +280,7 @@ function ManifestEditor({value,setValue,compact=false}:{value:Manifest,setValue:
 }
 
 function ManifestRead({title,manifest,locked=false}:{title:string,manifest:Manifest,locked?:boolean}) { return <div className={`manifestRead ${locked?'locked':''}`}><div className="manifestTitle"><span>{title}</span><small>{locked?'SEALED BASELINE':'AUTHORIZED'}</small></div>{Object.entries(manifest).map(([k,v])=><div className="manifestRow" key={k}><small>{pretty(k)}</small><span>{Array.isArray(v)?v.join(' · '):String(v)}</span></div>)}</div>; }
-function pretty(k:string){return k.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());}
+function pretty(k:string){return k.replace(/_/g,' ').replace(/\b\w/g,(c:string)=>c.toUpperCase());}
 function normalizeField(k:keyof Manifest,v:Manifest[keyof Manifest]){if(k==='data_sources')return [...new Set((v as string[]).map(x=>x.trim().replace(/\s+/g,' ')).filter(Boolean))].sort();if(typeof v==='string')return v.trim().replace(/\s+/g,' ');return v;}
 function diffManifest(a:Manifest,b:Manifest){return (Object.keys(a) as (keyof Manifest)[]).filter(k=>JSON.stringify(normalizeField(k,a[k]))!==JSON.stringify(normalizeField(k,b[k]))).map(k=>({field:String(k),critical:(criticalFields as readonly string[]).includes(String(k)),from:a[k],to:b[k]}));}
 function DiffRail({diffs}:{diffs:ReturnType<typeof diffManifest>}) { return <div className="diffRail"><div><small>CHANGE SCAN</small><b>{diffs.length ? `${diffs.length} declared change${diffs.length>1?'s':''}`:'Candidate matches original'}</b></div>{diffs.map(d=><span className={d.critical?'critical':'semantic'} key={d.field}>{d.critical?'CRITICAL':'SEMANTIC'} · {pretty(d.field)}</span>)}{!diffs.length&&<span className="neutral">NO CHANGE</span>}</div>; }
