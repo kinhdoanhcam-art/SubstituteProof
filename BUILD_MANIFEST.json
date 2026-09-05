@@ -1,0 +1,91 @@
+{
+  "project": "SubstituteProof",
+  "version": "v2-final-runtime-ui",
+  "phase": "RUNTIME_VERIFIED_UI_COMPLETE_PENDING_LIVE_VERCEL_SMOKE",
+  "agent_tank_intent": "Protect buyers from post-agreement AI-agent service substitution by keeping the original accepted manifest immutable, deterministically flagging critical changes, and using GenLayer consensus only for prose-level material equivalence.",
+  "contract": {
+    "path": "contracts/SubstituteProof.py",
+    "sha256": "15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41",
+    "deployment": "0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10",
+    "source_frozen_for_review": true
+  },
+  "local_gates": {
+    "python_compile": "PASS",
+    "ast_contract_invariants": "PASS",
+    "actual_contract_core": "24/24 PASS",
+    "actual_contract_adversarial": "18/18 PASS",
+    "prompt_fence": "0/12 bypasses",
+    "mutation_matrix": "18/18 caught"
+  },
+  "frontend": {
+    "status": "SOURCE_COMPLETE",
+    "stack": "Vite + React + TypeScript + genlayer-js@1.1.8",
+    "pages": [
+      "Overview",
+      "Create Agreement",
+      "Propose Substitute",
+      "Buyer Review",
+      "Finalize Handoff",
+      "Inspect State",
+      "Runtime Proof"
+    ],
+    "final_contract_embedded": true,
+    "verified_runtime_case_embedded": true,
+    "post_write_state_verification": true,
+    "ts_tsx_syntax_transpile": "PASS",
+    "dependency_installed_vite_build": "NOT_VERIFIED_PACKAGING_ENV_DNS_EAI_AGAIN",
+    "live_vercel_smoke": "PENDING"
+  },
+  "runtime": {
+    "studionet": "PASS",
+    "deployment": "0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10",
+    "source_parity": "PROVEN",
+    "agreement_id": "791b20f01944f2e46a2ffddcd8700429ee58c4cf229e1fd4aec8eef390d87584",
+    "final_status": "COMPLETED",
+    "proposal_count": 8,
+    "semantic_calls_total": 2,
+    "budget_grants": 0,
+    "evidence": "runtime-evidence/RUNTIME_EVIDENCE.json"
+  },
+  "security_properties": [
+    "immutable original buyer-accepted baseline",
+    "critical structured changes are deterministic material/no-model",
+    "semantic comparison always uses original baseline, not active/intermediate service",
+    "material substitution freezes handoff until buyer action",
+    "unreported changed declared manifest cannot finalize",
+    "provider cannot replace pending material proposal",
+    "buyer-rejected candidate cannot reroll",
+    "bounded semantic consensus budget with buyer-only grants",
+    "malformed LLM output fails closed",
+    "prompt fence fixed-point sanitation",
+    "completion is terminal",
+    "provider can withdraw a pending material proposal only by retreating to the already-authorized active manifest",
+    "withdrawn candidate is permanently blocked and cannot reroll",
+    "rejected critical candidates cannot re-freeze",
+    "reused MATERIAL classification cannot auto-activate",
+    "withdrawal preserves prior buyer-rejected ledger entries; throwaway withdrawal cannot launder an earlier rejection"
+  ],
+  "honest_scope": [
+    "party-declared manifests are not publisher provenance",
+    "contract does not verify external-world delivery truth",
+    "distinct addresses are contract-local roles, not proof of independent real-world control",
+    "equivalent prose substitutions auto-activate by design and have no buyer-side reversal once active",
+    "semantic-call bound applies to committed consensus rounds; fully reverted rounds leave no persistent counter/ledger entry",
+    "service_name is intentionally semantic rather than a deterministic critical field"
+  ],
+  "independent_predeploy_review": {
+    "result": "SAFE TO DEPLOY AS-IS \u2014 YES",
+    "exact_source_sha256": "15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41",
+    "genvm_lint_check": "PASS",
+    "genvm_typecheck": "PASS",
+    "genvm_schema": "PASS \u2014 13 methods",
+    "genlayer_direct_mode_shipped": "19/19 PASS",
+    "reviewer_additional_adversarial": "13 PASS; 32/32 total with shipped Direct Mode tests",
+    "production_contract_changed_after_review": false
+  },
+  "packaging_notes": [
+    "Production contract source unchanged after independent review and StudioNet deployment.",
+    "Runtime evidence is executed StudioNet behavior, not source-marker assertions.",
+    "npm install/build was attempted in packaging environment but registry DNS failed with EAI_AGAIN; do not claim Vite build until GitHub/Vercel succeeds."
+  ]
+}
