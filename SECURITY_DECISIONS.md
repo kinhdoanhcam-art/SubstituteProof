@@ -22,4 +22,4 @@ The deployed contract source is frozen at SHA256:
 
 `15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41`
 
-The final StudioNet behavior and source parity are recorded under `verification-evidence/`.
+The final StudioNet behavior and source parity are recorded under `onchain-evidence/`.

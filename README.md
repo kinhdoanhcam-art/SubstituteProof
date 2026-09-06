@@ -30,7 +30,7 @@ An AI agent can accept a deal for one service and later try to hand off a differ
 9. Finalization succeeds only for the exact currently authorized manifest.
 10. `COMPLETED` is terminal.
 
-## Verified runtime case
+## Reference on-chain case
 
 - Agreement ref: `substituteproof-runtime-001`
 - Agreement ID: `791b20f01944f2e46a2ffddcd8700429ee58c4cf229e1fd4aec8eef390d87584`
@@ -41,20 +41,21 @@ An AI agent can accept a deal for one service and later try to hand off a differ
 - Original manifest key: `6bf0843572c3166e940139b3e2677c7d6fb92ba103869f8178bba6e58ca5d4aa`
 - Final authorized/completed key: `3449c092a5e1397741003e739c846336f765371cf5da8d8634af9532b2847e63`
 
-See `verification-evidence/ONCHAIN_VERIFICATION.md` and `verification-evidence/EXECUTION_EVIDENCE.json`.
+See `onchain-evidence/PROTOCOL_TRACE.md` and `onchain-evidence/EXECUTION_TRACE.json`.
 
 ## Frontend
 
-The Vite/React UI uses a light editorial agreement-workspace visual system with:
+The Vite/React UI uses a web3 protocol-console visual system: a dark on-chain navigation shell with bright, high-clarity work surfaces and a live agreement-to-substitute gate visualization.
 
-- dedicated Overview / Create Agreement / Propose Substitute / Buyer Review / Finalize Handoff / Inspect State / Verification Path pages;
+- dedicated Overview / Create Agreement / Propose Substitute / Buyer Review / Finalize Handoff / Inspect State / Protocol Trace pages;
+- a blank Create flow with no demo values prefilled; the provider signs only what they enter;
 - manifest editor with the exact nine-field production schema;
 - side-by-side immutable-original vs candidate comparison;
 - deterministic critical-field diff labeling before a transaction;
 - explicit buyer/provider role awareness;
 - finalized-state postcondition verification after writes;
 - exact authorized-manifest finalization; and
-- one-click access to the verified runtime agreement and StudioNet explorer.
+- one-click access to a reference StudioNet case and the live contract explorer.
 
 The frontend uses `genlayer-js@1.1.8` and does not treat `FINALIZED` alone as proof of successful contract execution; it verifies durable state postconditions.
 
@@ -109,7 +110,7 @@ Writes:
 - StudioNet behavioral on-chain verification: PASS
 - final frontend TS/TSX syntax transpile: PASS
 
-A dependency-installed Vite build should be rechecked on Vercel after this presentation-only UI update. The production contract and StudioNet evidence are unchanged.
+A dependency-installed Vite build should be rechecked on Vercel after this UI update. The production contract and StudioNet state are unchanged.
 
 ## Honest scope
 

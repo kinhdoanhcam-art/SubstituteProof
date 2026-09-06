@@ -13,8 +13,8 @@ Source SHA256:
 
 Source parity: **PROVEN**.
 
-## Verification path
-Verified agreement:
+## Protocol trace
+Reference agreement:
 `791b20f01944f2e46a2ffddcd8700429ee58c4cf229e1fd4aec8eef390d87584`
 
 Final state:
@@ -29,7 +29,7 @@ Final state:
 The on-chain verification covered every high-risk steward path: role boundaries, deterministic critical classification, non-bypassable freeze, withdrawal liveness, reroll prevention, semantic equivalent/material branches, buyer resolution, salami/original-baseline binding, exact delivery binding, and terminal completion.
 
 ## Frontend
-The final UI uses a light editorial agreement-workspace system with contract green, warm amber evidence accents, layered-document motifs, and serif display typography. It exposes the real production contract path rather than a reference model.
+The final UI uses a web3 protocol-console system with contract green, warm amber evidence accents, layered-document motifs, and serif display typography. It exposes the real production contract path rather than a reference model.
 
 Pages:
 - Overview
@@ -38,7 +38,7 @@ Pages:
 - Buyer Review
 - Finalize Handoff
 - Inspect State
-- Verification Path
+- Protocol Trace
 
 The proposal workspace renders the immutable original beside the candidate and pre-labels declared differences as deterministic critical or semantic fields. Contract verdicts are still taken only from finalized on-chain state.
 

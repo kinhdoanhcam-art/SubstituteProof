@@ -5,16 +5,16 @@ import type { AgreementRecord, Manifest, ProposalRecord } from './types';
 
 type Page = 'overview' | 'create' | 'propose' | 'review' | 'finalize' | 'inspect' | 'verification';
 
-const ORIGINAL_DEMO: Manifest = {
-  service_name: 'Compliance Report Agent',
-  jurisdiction: 'Singapore',
-  model_class: 'general-purpose-llm',
-  max_delegation_depth: 1,
-  data_sources: ['Buyer policy bundle v1', 'Approved vendor registry'],
-  data_retention_mode: 'No retention after session',
-  capabilities: 'Generate weekly compliance reports and export signed audit logs.',
-  service_description: "Analyzes the buyer's supplied policy bundle and approved vendor registry to produce weekly compliance reports.",
-  limitations: 'Does not execute payments, modify source records, or use data sources outside the declared list.',
+const EMPTY_MANIFEST: Manifest = {
+  service_name: '',
+  jurisdiction: '',
+  model_class: '',
+  max_delegation_depth: -1,
+  data_sources: [],
+  data_retention_mode: '',
+  capabilities: '',
+  service_description: '',
+  limitations: '',
 };
 
 const cloneManifest = (m: Manifest): Manifest => ({ ...m, data_sources: [...m.data_sources] });
@@ -29,17 +29,17 @@ function App() {
   const [account, setAccount] = useState('');
   const [walletClient, setWalletClient] = useState<any>(null);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('Verified StudioNet deployment loaded. Connect a wallet or inspect the approved agreement record.');
+  const [notice, setNotice] = useState('StudioNet ready. Connect a wallet or load an on-chain agreement.');
   const [txHash, setTxHash] = useState('');
   const [agreementId, setAgreementId] = useState('');
   const [agreement, setAgreement] = useState<AgreementRecord | null>(null);
   const [proposal, setProposal] = useState<ProposalRecord | null>(null);
 
-  const [agreementRef, setAgreementRef] = useState('service-order-001');
+  const [agreementRef, setAgreementRef] = useState('');
   const [buyerHex, setBuyerHex] = useState('');
-  const [createManifest, setCreateManifest] = useState<Manifest>(cloneManifest(ORIGINAL_DEMO));
-  const [proposalNote, setProposalNote] = useState('Proposed implementation update after the accepted agreement.');
-  const [candidate, setCandidate] = useState<Manifest>(cloneManifest(ORIGINAL_DEMO));
+  const [createManifest, setCreateManifest] = useState<Manifest>(cloneManifest(EMPTY_MANIFEST));
+  const [proposalNote, setProposalNote] = useState('');
+  const [candidate, setCandidate] = useState<Manifest>(cloneManifest(EMPTY_MANIFEST));
   const [inspectProposalId, setInspectProposalId] = useState('');
 
   const role = useMemo(() => {
@@ -51,6 +51,22 @@ function App() {
 
   const activeCriticalDiffs = useMemo(() => agreement ? diffManifest(agreement.original_manifest, agreement.active_manifest).filter(x => x.critical) : [], [agreement]);
   const candidateDiffs = useMemo(() => agreement ? diffManifest(agreement.original_manifest, candidate) : [], [agreement, candidate]);
+  const createReady = useMemo(() => {
+    const textFields = [
+      createManifest.service_name,
+      createManifest.jurisdiction,
+      createManifest.model_class,
+      createManifest.data_retention_mode,
+      createManifest.capabilities,
+      createManifest.service_description,
+      createManifest.limitations,
+    ];
+    return agreementRef.trim().length > 0
+      && /^0x[a-fA-F0-9]{40}$/.test(buyerHex)
+      && createManifest.max_delegation_depth >= 0
+      && createManifest.data_sources.length > 0
+      && textFields.every(v => v.trim().length > 0);
+  }, [agreementRef, buyerHex, createManifest]);
 
   async function copy(value: string) {
     try { await navigator.clipboard.writeText(value); setNotice('Copied to clipboard.'); }
@@ -117,6 +133,7 @@ function App() {
     try {
       if (!account) throw new Error('Connect the provider wallet first.');
       if (!/^0x[a-fA-F0-9]{40}$/.test(buyerHex)) throw new Error('Enter a valid buyer address.');
+      if (!createReady) throw new Error('Complete every agreement field before creating on StudioNet.');
       const derived = await readString(contractAddress, 'derive_agreement_id', [account, buyerHex, agreementRef]);
       await withWrite('create_agreement', [agreementRef, buyerHex, manifestJson(createManifest)]);
       const data = await readJson<AgreementRecord>(contractAddress, 'get_agreement', [derived]);
@@ -205,28 +222,28 @@ function App() {
       <Nav page={page} id="review" icon="✓" label="Buyer Review" set={setPage}/>
       <Nav page={page} id="finalize" icon="◎" label="Finalize Handoff" set={setPage}/>
       <Nav page={page} id="inspect" icon="⌕" label="Inspect State" set={setPage}/>
-      <Nav page={page} id="verification" icon="▥" label="Verification Path" set={setPage}/>
+      <Nav page={page} id="verification" icon="▥" label="Protocol Trace" set={setPage}/>
       <div className="sideSpacer"/>
-      <div className="baselineCard"><small>IMMUTABLE RULE</small><b>Always compare to the original.</b><p>Approved substitutes never replace the buyer-accepted baseline.</p></div>
+      <div className="baselineCard"><small>PROTOCOL INVARIANT</small><b>The original stays canonical.</b><p>Every substitute is evaluated against the buyer-accepted baseline.</p></div>
     </aside>
     <main className="main">
       <StatusBar notice={notice} txHash={txHash} busy={busy}/>
       {page === 'overview' && <Overview openVerified={openVerified} go={setPage}/>} 
-      {page === 'create' && <Page title="Create a sealed service agreement" subtitle="The provider declares the service. The buyer must accept before the original manifest becomes the immutable comparison baseline.">
+      {page === 'create' && <Page title="Create an agreement" subtitle="Declare the service terms, choose the buyer, and anchor the original manifest on StudioNet. Nothing is prefilled: the provider signs exactly what is entered.">
         <div className="twoCol"><section className="panel">
-          <Field label="Agreement reference" hint="Short human-readable identifier"><input value={agreementRef} onChange={e=>setAgreementRef(e.target.value)}/></Field>
+          <Field label="Agreement reference" hint="A short identifier for this deal"><input placeholder="e.g. compliance-retainer-q4" value={agreementRef} onChange={e=>setAgreementRef(e.target.value)}/></Field>
           <Field label="Buyer address" hint="Must differ from the connected provider"><input placeholder="0x…" value={buyerHex} onChange={e=>setBuyerHex(e.target.value)}/></Field>
           <ManifestEditor value={createManifest} setValue={setCreateManifest}/>
-          <button className="primary" disabled={busy || !account} onClick={create}>Create agreement</button>
-        </section><aside><SealCard title="Provider declares" state={account ? 'Provider wallet connected' : 'Connect provider wallet'} tone="mint"/><SealCard title="Buyer acceptance" state="Locks the original baseline" tone="amber"/><SealCard title="No provenance claim" state="Manifest is party-declared data"/></aside></div>
+          <button className="primary" disabled={busy || !account || !createReady} onClick={create}>Create on StudioNet</button>
+        </section><aside><SealCard title="Signer" state={account ? `Provider · ${short(account)}` : 'Connect provider wallet'} tone="mint"/><SealCard title="Next state" state="Buyer acceptance seals the baseline" tone="amber"/><SealCard title="Protocol rule" state="Original terms remain the comparison anchor"/></aside></div>
       </Page>}
       {page === 'propose' && <Page title="Propose a substitute" subtitle="Stage a candidate against the immutable buyer-accepted original. Critical structured changes are deterministic; prose-only changes use GenLayer consensus.">
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId)} busy={busy} verified={() => {setAgreementId(VERIFIED_AGREEMENT_ID); void loadAgreement(VERIFIED_AGREEMENT_ID);}}/>
         {agreement ? <><div className="compareHeader"><div><small>ORIGINAL BASELINE</small><b>{short(agreement.original_manifest_key,10,8)}</b></div><span>vs</span><div><small>CANDIDATE</small><b>{candidateDiffs.length ? `${candidateDiffs.length} changed field${candidateDiffs.length>1?'s':''}` : 'No differences'}</b></div></div>
           <div className="diffGrid"><ManifestRead title="Original · locked" manifest={agreement.original_manifest} locked/><ManifestEditor value={candidate} setValue={setCandidate} compact/></div>
           <DiffRail diffs={candidateDiffs}/>
-          <Field label="Proposal note" hint="Audit-only. The note is not part of the semantic comparison."><textarea value={proposalNote} onChange={e=>setProposalNote(e.target.value)}/></Field>
-          <button className="primary" disabled={busy || role !== 'Provider' || agreement.status !== 'ACTIVE'} onClick={propose}>Run substitution gate</button>
+          <Field label="Proposal note" hint="Optional context. Not part of the semantic comparison."><textarea placeholder="Describe why this substitute is being proposed" value={proposalNote} onChange={e=>setProposalNote(e.target.value)}/></Field>
+          <button className="primary" disabled={busy || role !== 'Provider' || agreement.status !== 'ACTIVE'} onClick={propose}>Evaluate substitute</button>
           {proposal && <ProposalResult proposal={proposal}/>}</> : <Empty text="Load an agreement to stage a candidate."/>}
       </Page>}
       {page === 'review' && <Page title="Buyer review" subtitle="Only material substitutions require buyer action. Equivalent prose changes auto-activate by design; buyer review is reserved for material candidates.">
@@ -241,55 +258,59 @@ function App() {
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={() => {setAgreementId(VERIFIED_AGREEMENT_ID); void loadAgreement(VERIFIED_AGREEMENT_ID,false);}}/>
         {agreement ? <div className="twoCol"><section className="panel"><AgreementSummary a={agreement} role={role}/><div className="bindingStrip"><span>Delivered manifest</span><b>must equal</b><span>active_manifest_key</span></div><ManifestRead title="Authorized delivery manifest" manifest={agreement.active_manifest}/><button className="primary" disabled={busy || role!=='Provider' || agreement.status!=='ACTIVE'} onClick={finalize}>{agreement.status==='COMPLETED'?'Completed':'Finalize exact authorized manifest'}</button></section><aside><SealCard title="Original key" state={short(agreement.original_manifest_key,10,8)}/><SealCard title="Active key" state={short(agreement.active_manifest_key,10,8)} tone="mint"/><SealCard title="Pending" state={agreement.pending_proposal_id ? short(agreement.pending_proposal_id) : 'None'}/></aside></div> : <Empty text="Load an agreement to verify the authorized delivery manifest."/>}
       </Page>}
-      {page === 'inspect' && <Page title="Inspect finalized state" subtitle="Read the agreement and proposal ledger directly from StudioNet. The verified agreement record is one click away.">
+      {page === 'inspect' && <Page title="Inspect finalized state" subtitle="Read agreement state and proposal history directly from StudioNet.">
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={openVerified}/>
         <div className="inspectInput"><input placeholder="Optional proposal ID" value={inspectProposalId} onChange={e=>setInspectProposalId(e.target.value)}/><button className="secondary" disabled={!inspectProposalId || busy} onClick={()=>loadProposal()}>Load proposal</button></div>
         {agreement && <><AgreementSummary a={agreement} role={role}/><div className="inspectGrid"><JsonCard title="Agreement" data={agreement}/><JsonCard title="Proposal" data={proposal}/></div></>}
       </Page>}
-      {page === 'verification' && <VerificationPath openVerified={openVerified}/>} 
+      {page === 'verification' && <ProtocolTrace openVerified={openVerified}/>} 
     </main>
   </div>;
 }
 
 function Nav({page,id,icon,label,set}:{page:Page,id:Page,icon:string,label:string,set:(p:Page)=>void}) { return <button className={`nav ${page===id?'active':''}`} onClick={()=>set(id)}><span>{icon}</span>{label}</button>; }
 function StatusBar({notice,txHash,busy}:{notice:string,txHash:string,busy:boolean}) { return <div className="statusBar"><i className={busy?'pulse':''}/><small>STUDIONET</small><span>{notice}</span>{txHash && <code>{short(txHash,8,6)}</code>}</div>; }
-function Page({title,subtitle,children}:{title:string,subtitle:string,children:ReactNode}) { return <div className="page"><div className="eyebrow">SUBSTITUTEPROOF WORKSPACE</div><h1>{title}</h1><p className="subtitle">{subtitle}</p>{children}</div>; }
+function Page({title,subtitle,children}:{title:string,subtitle:string,children:ReactNode}) { return <div className="page"><div className="eyebrow">SUBSTITUTEPROOF · LIVE PROTOCOL</div><h1>{title}</h1><p className="subtitle">{subtitle}</p>{children}</div>; }
 function Field({label,hint,children}:{label:string,hint?:string,children:ReactNode}) { return <label className="field"><span><b>{label}</b>{hint && <small>{hint}</small>}</span>{children}</label>; }
 function Empty({text}:{text:string}) { return <div className="empty">{text}</div>; }
 
 function Overview({openVerified,go}:{openVerified:()=>void,go:(p:Page)=>void}) { return <div className="overview page">
-  <div className="hero editorialHero">
+  <div className="hero protocolHero">
     <div className="heroCopy">
-      <div className="eyebrow">SAME AGREEMENT · NO UNAPPROVED SUBSTITUTIONS.</div>
-      <h1>Keep the deal.<br/><span>Control the substitute.</span></h1>
-      <p>SubstituteProof protects a buyer when an AI-agent provider changes the declared service after acceptance. Critical changes freeze deterministically; prose-only changes get one bounded material-equivalence decision against the original manifest.</p>
-      <div className="tagRow"><span>▣ Immutable original</span><span>▤ Critical fields · no model</span><span>⚖ Material ↔ buyer approval</span></div>
+      <div className="eyebrow">POST-AGREEMENT CHANGE CONTROL · STUDIONET</div>
+      <h1>Lock the original.<br/><span>Gate every substitute.</span></h1>
+      <p>SubstituteProof keeps the buyer-accepted manifest as the permanent reference point. Structured critical changes freeze immediately; prose-only changes pass through one bounded material-equivalence decision.</p>
+      <div className="heroActions"><button className="primary" onClick={()=>go('create')}>Create agreement</button><button className="secondary" onClick={()=>go('propose')}>Evaluate a substitute</button></div>
+      <div className="tagRow"><span>◎ Original anchored</span><span>◇ Deterministic critical gate</span><span>⇄ Buyer-controlled handoff</span></div>
     </div>
-    <div className="documentArt" aria-hidden="true">
-      <div className="paper paperBack"/><div className="paper paperMid"/><div className="paper paperFront"><small>AGREEMENT</small><i/><i/><i/><i/><b>Buyer accepted</b></div>
-      <div className="verifiedStamp">✓<span>VERIFIED<br/>ON-CHAIN</span></div>
+    <div className="protocolArt" aria-label="Original agreement compared to a substitute through a materiality gate">
+      <div className="meshGlow"/>
+      <div className="protocolNode originalNode"><small>ORIGINAL</small><b>LOCKED</b><code>buyer-accepted</code><i/></div>
+      <div className="gateNode"><span>⇄</span><small>MATERIALITY GATE</small><b>critical / semantic</b></div>
+      <div className="protocolNode candidateNode"><small>SUBSTITUTE</small><b>CONSENT-BOUND</b><code>provider-proposed</code><i/></div>
+      <div className="traceLine"/>
     </div>
-    <div className="seal contractCard"><small>PRODUCTION CONTRACT</small><div className="sealTitle"><i/> <b>Source parity proven</b></div><code>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</code><div className="contractFacts"><span>Network <b>StudioNet</b></span><span>Status <b>Verified</b></span></div><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">View on Explorer ↗</a></div>
+    <div className="liveContract"><div><i/><span><small>LIVE CONTRACT</small><b>StudioNet</b></span></div><code>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</code><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">Explorer ↗</a></div>
   </div>
-  <div className="sectionLabel"><span>HOW IT WORKS</span><em>A SAFER WAY TO EVOLVE AI SERVICES</em></div>
-  <div className="flow"><Flow n="1" title="Seal original" text="Buyer accepts the provider-declared manifest."/><Flow n="2" title="Compare substitute" text="Always against the immutable original."/><Flow n="3" title="Freeze material drift" text="Buyer must approve before handoff."/><Flow n="4" title="Bind completion" text="Only the exact authorized manifest can finalize."/></div>
-  <div className="sectionLabel"><span>CORE GUARANTEES</span><em>DETERMINISTIC · TRANSPARENT · BUYER-CONTROLLED</em></div>
-  <div className="featureGrid"><button onClick={()=>go('propose')}><small>DETERMINISTIC</small><b>Critical fields bypass the model</b><p>Jurisdiction, model class, delegation depth, data sources and retention changes are material immediately.</p></button><button onClick={()=>go('review')}><small>CONSENSUS</small><b>Semantic equivalence, not an AI court</b><p>Validators only judge material equivalence of non-critical prose against the original accepted manifest.</p></button><button onClick={()=>go('verification')}><small>ON-CHAIN EVIDENCE</small><b>Follow the verification path</b><p>Freeze behavior, role guards, withdrawal liveness, anti-reroll, original-baseline binding and terminal completion are executed on-chain.</p><strong>Open verification path →</strong></button></div>
+  <div className="sectionLabel"><span>PROTOCOL FLOW</span><em>ORIGINAL → GATE → CONSENT → HANDOFF</em></div>
+  <div className="flow"><Flow n="01" title="Anchor original" text="Buyer acceptance seals the provider-declared manifest."/><Flow n="02" title="Stage substitute" text="Every candidate is compared to the immutable original."/><Flow n="03" title="Gate material drift" text="Critical drift freezes; semantic drift is bounded by consensus."/><Flow n="04" title="Authorize handoff" text="Only the current authorized manifest can complete."/></div>
+  <div className="sectionLabel"><span>PROTOCOL LAYERS</span><em>DETERMINISTIC · CONSENSUS · ON-CHAIN STATE</em></div>
+  <div className="featureGrid"><button onClick={()=>go('propose')}><small>RULE LAYER</small><b>Critical fields never reach the model</b><p>Jurisdiction, model class, delegation depth, data sources and retention changes become material deterministically.</p></button><button onClick={()=>go('review')}><small>CONSENSUS LAYER</small><b>One narrow equivalence question</b><p>Validators only judge whether non-critical prose remains materially equivalent to the original accepted manifest.</p></button><button onClick={()=>go('verification')}><small>STATE LAYER</small><b>Inspect the protocol trace</b><p>Role boundaries, freeze behavior, anti-reroll, original-baseline anchoring and terminal completion are visible from finalized StudioNet state.</p><strong>Open protocol trace →</strong></button></div>
 </div>; }
 function Flow({n,title,text}:{n:string,title:string,text:string}) { return <div><span>{n}</span><b>{title}</b><small>{text}</small></div>; }
 
-function AgreementLoader({id,setId,load,busy,verified}:{id:string,setId:(v:string)=>void,load:()=>void,busy:boolean,verified:()=>void}) { return <div className="loader"><input placeholder="Paste finalized agreement ID" value={id} onChange={e=>setId(e.target.value)}/><button className="secondary" disabled={busy||!id} onClick={load}>Load agreement</button><button className="linkButton" onClick={verified}>Verified agreement</button></div>; }
+function AgreementLoader({id,setId,load,busy,verified}:{id:string,setId:(v:string)=>void,load:()=>void,busy:boolean,verified:()=>void}) { return <div className="loader"><input placeholder="Paste finalized agreement ID" value={id} onChange={e=>setId(e.target.value)}/><button className="secondary" disabled={busy||!id} onClick={load}>Load agreement</button><button className="linkButton" onClick={verified}>Load StudioNet case</button></div>; }
 
 function ManifestEditor({value,setValue,compact=false}:{value:Manifest,setValue:(m:Manifest)=>void,compact?:boolean}) {
   const set = <K extends keyof Manifest>(k:K,v:Manifest[K])=>setValue({...value,[k]:v});
   return <div className={`manifestEditor ${compact?'compact':''}`}>
     {!compact && <div className="manifestTitle"><span>Service manifest</span><small>Exact 9-field schema</small></div>}
-    <div className="formGrid"><Field label="Service name"><input value={value.service_name} onChange={e=>set('service_name',e.target.value)}/></Field><Field label="Jurisdiction"><input value={value.jurisdiction} onChange={e=>set('jurisdiction',e.target.value)}/></Field><Field label="Model class"><input value={value.model_class} onChange={e=>set('model_class',e.target.value)}/></Field><Field label="Delegation depth"><input type="number" min="0" max="16" value={value.max_delegation_depth} onChange={e=>set('max_delegation_depth',Number(e.target.value))}/></Field></div>
-    <Field label="Data sources" hint="One source per line"><textarea value={value.data_sources.join('\n')} onChange={e=>set('data_sources',e.target.value.split('\n').map(x=>x.trim()).filter(Boolean))}/></Field>
-    <Field label="Data retention mode"><input value={value.data_retention_mode} onChange={e=>set('data_retention_mode',e.target.value)}/></Field>
-    <Field label="Capabilities"><textarea value={value.capabilities} onChange={e=>set('capabilities',e.target.value)}/></Field>
-    <Field label="Service description"><textarea value={value.service_description} onChange={e=>set('service_description',e.target.value)}/></Field>
-    <Field label="Limitations"><textarea value={value.limitations} onChange={e=>set('limitations',e.target.value)}/></Field>
+    <div className="formGrid"><Field label="Service name"><input placeholder="Enter service name" value={value.service_name} onChange={e=>set('service_name',e.target.value)}/></Field><Field label="Jurisdiction"><input placeholder="Enter jurisdiction" value={value.jurisdiction} onChange={e=>set('jurisdiction',e.target.value)}/></Field><Field label="Model class"><input placeholder="Enter model class" value={value.model_class} onChange={e=>set('model_class',e.target.value)}/></Field><Field label="Delegation depth"><input type="number" min="0" max="16" placeholder="0–16" value={value.max_delegation_depth < 0 ? '' : value.max_delegation_depth} onChange={e=>set('max_delegation_depth',e.target.value === '' ? -1 : Number(e.target.value))}/></Field></div>
+    <Field label="Data sources" hint="One source per line"><textarea placeholder="List the declared sources" value={value.data_sources.join('\n')} onChange={e=>set('data_sources',e.target.value.split('\n').map(x=>x.trim()).filter(Boolean))}/></Field>
+    <Field label="Data retention mode"><input placeholder="Describe retention policy" value={value.data_retention_mode} onChange={e=>set('data_retention_mode',e.target.value)}/></Field>
+    <Field label="Capabilities"><textarea placeholder="What the service is allowed to do" value={value.capabilities} onChange={e=>set('capabilities',e.target.value)}/></Field>
+    <Field label="Service description"><textarea placeholder="Describe the agreed service" value={value.service_description} onChange={e=>set('service_description',e.target.value)}/></Field>
+    <Field label="Limitations"><textarea placeholder="Declare explicit limitations" value={value.limitations} onChange={e=>set('limitations',e.target.value)}/></Field>
   </div>;
 }
 
@@ -299,14 +320,14 @@ function normalizeField(k:keyof Manifest,v:Manifest[keyof Manifest]){if(k==='dat
 function diffManifest(a:Manifest,b:Manifest){return (Object.keys(a) as (keyof Manifest)[]).filter(k=>JSON.stringify(normalizeField(k,a[k]))!==JSON.stringify(normalizeField(k,b[k]))).map(k=>({field:String(k),critical:(criticalFields as readonly string[]).includes(String(k)),from:a[k],to:b[k]}));}
 function DiffRail({diffs}:{diffs:ReturnType<typeof diffManifest>}) { return <div className="diffRail"><div><small>CHANGE SCAN</small><b>{diffs.length ? `${diffs.length} declared change${diffs.length>1?'s':''}`:'Candidate matches original'}</b></div>{diffs.map(d=><span className={d.critical?'critical':'semantic'} key={d.field}>{d.critical?'CRITICAL':'SEMANTIC'} · {pretty(d.field)}</span>)}{!diffs.length&&<span className="neutral">NO CHANGE</span>}</div>; }
 
-function ProposalResult({proposal}:{proposal:ProposalRecord|null}) { if(!proposal) return null; const material=proposal.outcome.includes('MATERIAL')||proposal.proposal_status==='BUYER_REVIEW'; return <div className={`proposalResult ${material?'material':'safe'}`}><div><small>FINALIZED PROPOSAL</small><b>{proposal.outcome}</b></div><div className="resultStats"><span><small>Status</small><b>{proposal.proposal_status}</b></span><span><small>Model called</small><b>{proposal.model_called?'Yes':'No'}</b></span><span><small>Critical changes</small><b>{proposal.critical_changes.length?proposal.critical_changes.join(', '):'None'}</b></span></div><code>{short(proposal.proposal_id,12,8)}</code></div>; }
+function ProposalResult({proposal}:{proposal:ProposalRecord|null}) { if(!proposal) return null; const material=proposal.outcome.includes('MATERIAL')||proposal.proposal_status==='BUYER_REVIEW'; return <div className={`proposalResult ${material?'material':'safe'}`}><div><small>PROPOSAL STATE</small><b>{proposal.outcome}</b></div><div className="resultStats"><span><small>Status</small><b>{proposal.proposal_status}</b></span><span><small>Model called</small><b>{proposal.model_called?'Yes':'No'}</b></span><span><small>Critical changes</small><b>{proposal.critical_changes.length?proposal.critical_changes.join(', '):'None'}</b></span></div><code>{short(proposal.proposal_id,12,8)}</code></div>; }
 function AgreementSummary({a,role}:{a:AgreementRecord,role:string}) { return <div className="agreementSummary"><div className="summaryTop"><StatusPill status={a.status}/><b>{a.agreement_ref}</b><span>Role: {role}</span></div><div className="statGrid"><Stat label="Proposals" value={String(a.proposal_count)}/><Stat label="Semantic calls" value={`${a.semantic_calls_total}/${3*(1+a.budget_grants)}`}/><Stat label="Budget grants" value={String(a.budget_grants)}/><Stat label="Rejected candidates" value={String(Object.keys(a.rejected_candidates||{}).length)}/></div><div className="keyLine"><span>Original <code>{short(a.original_manifest_key,10,8)}</code></span><span>Active <code>{short(a.active_manifest_key,10,8)}</code></span></div></div>; }
 function Stat({label,value}:{label:string,value:string}){return <div><small>{label}</small><b>{value}</b></div>}
 function StatusPill({status}:{status:string}){return <span className={`statusPill ${status.toLowerCase()}`}>{status}</span>}
 function SealCard({title,state,tone='plain'}:{title:string,state:string,tone?:string}){return <div className={`sealCard ${tone}`}><small>{title}</small><b>{state}</b></div>}
 function JsonCard({title,data}:{title:string,data:any}){return <div className="jsonCard"><div><small>{title}</small>{data&&<button onClick={()=>navigator.clipboard.writeText(JSON.stringify(data,null,2))}>Copy JSON</button>}</div><pre>{data?JSON.stringify(data,null,2):'No data loaded.'}</pre></div>}
 
-function VerificationPath({openVerified}:{openVerified:()=>void}) { const items=[
+function ProtocolTrace({openVerified}:{openVerified:()=>void}) { const items=[
   ['Role boundary','Provider buyer-only actions roll back; buyer/provider permissions remain separated.'],
   ['Critical-field gate','Jurisdiction and retention changes became material with model_called=false.'],
   ['Frozen handoff','Finalize while buyer approval was pending rolled back deterministically.'],
@@ -315,6 +336,6 @@ function VerificationPath({openVerified}:{openVerified:()=>void}) { const items=
   ['Material substitute','Capability loss reached MATERIAL_SUBSTITUTION and required buyer review.'],
   ['Original-baseline anchor','A later change still compared against the buyer-accepted original rather than an intermediate substitute.'],
   ['Bound completion','An old manifest could not finalize; the authorized manifest completed; post-completion substitution rolled back.'],
-]; return <Page title="Verification path" subtitle="Trace the finalized StudioNet checkpoints that support the project claims. Each checkpoint points to executed contract behavior rather than source-only assertions."><div className="verificationLayout"><div className="verificationTimeline">{items.map(([a,b],i)=><div key={a} className="verificationStep"><span>{String(i+1).padStart(2,'0')}</span><div><small>CHECKPOINT</small><b>{a}</b><p>{b}</p></div></div>)}</div><aside><div className="evidenceCard"><small>DEPLOYMENT</small><b>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</b><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">View on Explorer ↗</a></div><div className="evidenceCard"><small>SOURCE SHA256</small><code>{CONTRACT_SHA256}</code><b className="verified">Parity verified</b></div><div className="evidenceCard featured"><small>APPROVED AGREEMENT</small><code>{VERIFIED_AGREEMENT_ID}</code><button className="primary" onClick={openVerified}>Inspect finalized record</button></div></aside></div></Page>; }
+]; return <Page title="Protocol trace" subtitle="Follow the finalized StudioNet state transitions that define how SubstituteProof behaves in practice."><div className="verificationLayout"><div className="verificationTimeline">{items.map(([a,b],i)=><div key={a} className="verificationStep"><span>{String(i+1).padStart(2,'0')}</span><div><small>STATE TRANSITION</small><b>{a}</b><p>{b}</p></div></div>)}</div><aside><div className="evidenceCard"><small>LIVE CONTRACT</small><b>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</b><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">View on Explorer ↗</a></div><div className="evidenceCard"><small>CODE IDENTITY</small><code>{CONTRACT_SHA256}</code><b className="verified">Source match confirmed</b></div><div className="evidenceCard featured"><small>REFERENCE AGREEMENT</small><code>{VERIFIED_AGREEMENT_ID}</code><button className="primary" onClick={openVerified}>Open on-chain state</button></div></aside></div></Page>; }
 
 export default App;

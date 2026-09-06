@@ -41,7 +41,7 @@ Recorded results: lint PASS, typecheck PASS, schema PASS (13 methods), and 32/32
 
 ## StudioNet on-chain verification — COMPLETED
 
-`verification-evidence/EXECUTION_EVIDENCE.json` and `verification-evidence/ONCHAIN_VERIFICATION.md` record the finalized behavioral evidence. Key executed outcomes include:
+`onchain-evidence/EXECUTION_TRACE.json` and `onchain-evidence/PROTOCOL_TRACE.md` record the finalized behavioral evidence. Key executed outcomes include:
 
 - wrong-role buyer action -> `ONLY_BUYER` rollback;
 - exact active manifest -> `NO_CHANGE_ACTIVE`, no model;

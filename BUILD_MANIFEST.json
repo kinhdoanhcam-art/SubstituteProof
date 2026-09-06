@@ -1,8 +1,8 @@
 {
   "project": "SubstituteProof",
-  "version": "v2.2-verification-path-ui",
-  "phase": "RUNTIME_VERIFIED_UI_REFRESH_PENDING_LIVE_SMOKE",
-  "agent_tank_intent": "Protect buyers from post-agreement AI-agent service substitution by keeping the original accepted manifest immutable, deterministically flagging critical changes, and using GenLayer consensus only for prose-level material equivalence.",
+  "version": "v2.3-protocol-ui",
+  "phase": "RUNTIME_VERIFIED_PROTOCOL_UI_READY_FOR_LIVE_SMOKE",
+  "intent": "Protect buyers from post-agreement AI-agent service substitution by keeping the original accepted manifest immutable, deterministically flagging critical changes, and using GenLayer consensus only for prose-level material equivalence.",
   "contract": {
     "path": "contracts/SubstituteProof.py",
     "sha256": "15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41",
@@ -17,16 +17,10 @@
     "prompt_fence": "0/12 bypasses",
     "mutation_matrix": "18/18 caught"
   },
-  "exact_source_validation": {
-    "genvm_lint_check": "PASS",
-    "genvm_typecheck": "PASS",
-    "genvm_schema": "PASS — 13 methods",
-    "direct_mode_executable_checks": "32/32 PASS"
-  },
   "frontend": {
     "status": "SOURCE_COMPLETE",
     "stack": "Vite + React + TypeScript + genlayer-js@1.1.8",
-    "visual_system": "light editorial agreement workspace; forest-green contract accents; warm amber evidence stamp; layered-document motif",
+    "visual_system": "web3 protocol console: dark chain-navigation shell, bright transaction surfaces, teal/cyan on-chain accents, agreement-to-substitute gate visualization",
     "pages": [
       "Overview",
       "Create Agreement",
@@ -34,12 +28,13 @@
       "Buyer Review",
       "Finalize Handoff",
       "Inspect State",
-      "Verification Path"
+      "Protocol Trace"
     ],
+    "create_form": "blank by default; no demo manifest or agreement reference prefilled",
     "final_contract_embedded": true,
-    "verified_agreement_embedded": true,
+    "reference_agreement_embedded": true,
     "post_write_state_verification": true,
-    "ts_tsx_syntax_transpile": "PASS",
+    "ts_tsx_syntax_parse": "PASS",
     "live_vercel_smoke": "RECHECK_AFTER_UI_UPDATE"
   },
   "onchain_verification": {
@@ -51,7 +46,7 @@
     "proposal_count": 8,
     "semantic_calls_total": 2,
     "budget_grants": 0,
-    "evidence": "verification-evidence/EXECUTION_EVIDENCE.json"
+    "evidence": "onchain-evidence/EXECUTION_TRACE.json"
   },
   "security_properties": [
     "immutable original buyer-accepted baseline",
@@ -63,7 +58,6 @@
     "buyer-rejected candidate cannot reroll",
     "bounded semantic consensus budget with buyer-only grants",
     "malformed model output fails closed",
-    "prompt fence fixed-point sanitation",
     "completion is terminal",
     "provider withdrawal can only retreat to the already-authorized active manifest",
     "withdrawn candidate remains blocked and cannot reroll"
@@ -78,7 +72,8 @@
   ],
   "packaging_notes": [
     "Production contract source is unchanged by this UI refresh.",
-    "Verification evidence records executed StudioNet behavior, not source-marker assertions.",
-    "Run one fresh Vercel build/smoke after GitHub update before final freeze."
+    "Create Agreement is intentionally blank by default; reference case loading remains available elsewhere.",
+    "On-chain evidence records executed StudioNet behavior, not source-marker assertions.",
+    "Run one fresh Vercel build/smoke after GitHub update before release freeze."
   ]
 }

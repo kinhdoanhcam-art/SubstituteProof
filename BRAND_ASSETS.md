@@ -13,6 +13,6 @@ SubstituteProof uses an editorial agreement-workspace identity rather than a gen
 
 ## Product presentation
 
-The UI should feel like a contract review desk: quiet, legible, and procedural. The Overview emphasizes the immutable original, the four-step handoff path, and a dedicated **Verification Path** for finalized StudioNet evidence.
+The UI should feel like a contract review desk: quiet, legible, and procedural. The Overview emphasizes the immutable original, the four-step handoff path, and a dedicated **Protocol Trace** for finalized StudioNet evidence.
 
 `public/logo.svg` is the canonical project mark.
