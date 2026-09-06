@@ -3,7 +3,7 @@ import { DEFAULT_CONTRACT_ADDRESS, STUDIONET_EXPLORER_URL, VERIFIED_AGREEMENT_ID
 import { connectWallet, readJson, readString, writeAndFinalize } from './genlayer';
 import type { AgreementRecord, Manifest, ProposalRecord } from './types';
 
-type Page = 'overview' | 'create' | 'propose' | 'review' | 'finalize' | 'inspect' | 'proof';
+type Page = 'overview' | 'create' | 'propose' | 'review' | 'finalize' | 'inspect' | 'verification';
 
 const ORIGINAL_DEMO: Manifest = {
   service_name: 'Compliance Report Agent',
@@ -29,7 +29,7 @@ function App() {
   const [account, setAccount] = useState('');
   const [walletClient, setWalletClient] = useState<any>(null);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('Final StudioNet deployment loaded. Connect a wallet or open the verified runtime agreement.');
+  const [notice, setNotice] = useState('Verified StudioNet deployment loaded. Connect a wallet or inspect the approved agreement record.');
   const [txHash, setTxHash] = useState('');
   const [agreementId, setAgreementId] = useState('');
   const [agreement, setAgreement] = useState<AgreementRecord | null>(null);
@@ -205,7 +205,7 @@ function App() {
       <Nav page={page} id="review" icon="✓" label="Buyer Review" set={setPage}/>
       <Nav page={page} id="finalize" icon="◎" label="Finalize Handoff" set={setPage}/>
       <Nav page={page} id="inspect" icon="⌕" label="Inspect State" set={setPage}/>
-      <Nav page={page} id="proof" icon="▦" label="Runtime Proof" set={setPage}/>
+      <Nav page={page} id="verification" icon="▥" label="Verification Path" set={setPage}/>
       <div className="sideSpacer"/>
       <div className="baselineCard"><small>IMMUTABLE RULE</small><b>Always compare to the original.</b><p>Approved substitutes never replace the buyer-accepted baseline.</p></div>
     </aside>
@@ -241,30 +241,44 @@ function App() {
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={() => {setAgreementId(VERIFIED_AGREEMENT_ID); void loadAgreement(VERIFIED_AGREEMENT_ID,false);}}/>
         {agreement ? <div className="twoCol"><section className="panel"><AgreementSummary a={agreement} role={role}/><div className="bindingStrip"><span>Delivered manifest</span><b>must equal</b><span>active_manifest_key</span></div><ManifestRead title="Authorized delivery manifest" manifest={agreement.active_manifest}/><button className="primary" disabled={busy || role!=='Provider' || agreement.status!=='ACTIVE'} onClick={finalize}>{agreement.status==='COMPLETED'?'Completed':'Finalize exact authorized manifest'}</button></section><aside><SealCard title="Original key" state={short(agreement.original_manifest_key,10,8)}/><SealCard title="Active key" state={short(agreement.active_manifest_key,10,8)} tone="mint"/><SealCard title="Pending" state={agreement.pending_proposal_id ? short(agreement.pending_proposal_id) : 'None'}/></aside></div> : <Empty text="Load an agreement to verify the authorized delivery manifest."/>}
       </Page>}
-      {page === 'inspect' && <Page title="Inspect finalized state" subtitle="Read the agreement and proposal ledger directly from StudioNet. The verified runtime case is one click away.">
+      {page === 'inspect' && <Page title="Inspect finalized state" subtitle="Read the agreement and proposal ledger directly from StudioNet. The verified agreement record is one click away.">
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={openVerified}/>
         <div className="inspectInput"><input placeholder="Optional proposal ID" value={inspectProposalId} onChange={e=>setInspectProposalId(e.target.value)}/><button className="secondary" disabled={!inspectProposalId || busy} onClick={()=>loadProposal()}>Load proposal</button></div>
         {agreement && <><AgreementSummary a={agreement} role={role}/><div className="inspectGrid"><JsonCard title="Agreement" data={agreement}/><JsonCard title="Proposal" data={proposal}/></div></>}
       </Page>}
-      {page === 'proof' && <RuntimeProof openVerified={openVerified}/>} 
+      {page === 'verification' && <VerificationPath openVerified={openVerified}/>} 
     </main>
   </div>;
 }
 
 function Nav({page,id,icon,label,set}:{page:Page,id:Page,icon:string,label:string,set:(p:Page)=>void}) { return <button className={`nav ${page===id?'active':''}`} onClick={()=>set(id)}><span>{icon}</span>{label}</button>; }
-function StatusBar({notice,txHash,busy}:{notice:string,txHash:string,busy:boolean}) { return <div className="statusBar"><i className={busy?'pulse':''}/><small>RUNTIME</small><span>{notice}</span>{txHash && <code>{short(txHash,8,6)}</code>}</div>; }
+function StatusBar({notice,txHash,busy}:{notice:string,txHash:string,busy:boolean}) { return <div className="statusBar"><i className={busy?'pulse':''}/><small>STUDIONET</small><span>{notice}</span>{txHash && <code>{short(txHash,8,6)}</code>}</div>; }
 function Page({title,subtitle,children}:{title:string,subtitle:string,children:ReactNode}) { return <div className="page"><div className="eyebrow">SUBSTITUTEPROOF WORKSPACE</div><h1>{title}</h1><p className="subtitle">{subtitle}</p>{children}</div>; }
 function Field({label,hint,children}:{label:string,hint?:string,children:ReactNode}) { return <label className="field"><span><b>{label}</b>{hint && <small>{hint}</small>}</span>{children}</label>; }
 function Empty({text}:{text:string}) { return <div className="empty">{text}</div>; }
 
 function Overview({openVerified,go}:{openVerified:()=>void,go:(p:Page)=>void}) { return <div className="overview page">
-  <div className="hero"><div className="heroMark"><img src="/logo.svg"/></div><div className="heroText"><div className="eyebrow">GENLAYER · STUDIONET RUNTIME</div><h1>Keep the deal. Control the substitute.</h1><h2>The original service agreement stays the reference point.</h2><p>SubstituteProof protects a buyer when an AI-agent provider changes the declared service after acceptance. Critical changes freeze deterministically; prose-only changes get one bounded material-equivalence decision against the original manifest.</p><div className="tagRow"><span>Immutable original</span><span>Critical fields · no model</span><span>Material → buyer approval</span></div></div><div className="seal"><small>PRODUCTION CANDIDATE</small><b>Source parity proven</b><code>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</code><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">Open Explorer ↗</a></div></div>
-  <div className="flow"><Flow n="01" title="Seal original" text="Buyer accepts the provider-declared manifest."/><Flow n="02" title="Compare substitute" text="Always against the immutable original."/><Flow n="03" title="Freeze material drift" text="Buyer must approve before handoff."/><Flow n="04" title="Bind completion" text="Only the exact authorized manifest can finalize."/></div>
-  <div className="featureGrid"><button onClick={()=>go('propose')}><small>DETERMINISTIC LANE</small><b>Critical fields bypass the model.</b><p>Jurisdiction, model class, delegation depth, data sources and retention changes are material immediately.</p></button><button onClick={()=>go('review')}><small>CONSENSUS LANE</small><b>Semantic equivalence, not an AI court.</b><p>Validators only judge material equivalence of non-critical prose against the original accepted manifest.</p></button><button onClick={openVerified}><small>RUNTIME PROOF</small><b>Verified end-to-end on StudioNet.</b><p>Freeze, role guards, withdrawal liveness, anti-reroll, salami binding and terminal completion are executed behavior.</p><strong>Open verified agreement →</strong></button></div>
+  <div className="hero editorialHero">
+    <div className="heroCopy">
+      <div className="eyebrow">SAME AGREEMENT · NO UNAPPROVED SUBSTITUTIONS.</div>
+      <h1>Keep the deal.<br/><span>Control the substitute.</span></h1>
+      <p>SubstituteProof protects a buyer when an AI-agent provider changes the declared service after acceptance. Critical changes freeze deterministically; prose-only changes get one bounded material-equivalence decision against the original manifest.</p>
+      <div className="tagRow"><span>▣ Immutable original</span><span>▤ Critical fields · no model</span><span>⚖ Material ↔ buyer approval</span></div>
+    </div>
+    <div className="documentArt" aria-hidden="true">
+      <div className="paper paperBack"/><div className="paper paperMid"/><div className="paper paperFront"><small>AGREEMENT</small><i/><i/><i/><i/><b>Buyer accepted</b></div>
+      <div className="verifiedStamp">✓<span>VERIFIED<br/>ON-CHAIN</span></div>
+    </div>
+    <div className="seal contractCard"><small>PRODUCTION CONTRACT</small><div className="sealTitle"><i/> <b>Source parity proven</b></div><code>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</code><div className="contractFacts"><span>Network <b>StudioNet</b></span><span>Status <b>Verified</b></span></div><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">View on Explorer ↗</a></div>
+  </div>
+  <div className="sectionLabel"><span>HOW IT WORKS</span><em>A SAFER WAY TO EVOLVE AI SERVICES</em></div>
+  <div className="flow"><Flow n="1" title="Seal original" text="Buyer accepts the provider-declared manifest."/><Flow n="2" title="Compare substitute" text="Always against the immutable original."/><Flow n="3" title="Freeze material drift" text="Buyer must approve before handoff."/><Flow n="4" title="Bind completion" text="Only the exact authorized manifest can finalize."/></div>
+  <div className="sectionLabel"><span>CORE GUARANTEES</span><em>DETERMINISTIC · TRANSPARENT · BUYER-CONTROLLED</em></div>
+  <div className="featureGrid"><button onClick={()=>go('propose')}><small>DETERMINISTIC</small><b>Critical fields bypass the model</b><p>Jurisdiction, model class, delegation depth, data sources and retention changes are material immediately.</p></button><button onClick={()=>go('review')}><small>CONSENSUS</small><b>Semantic equivalence, not an AI court</b><p>Validators only judge material equivalence of non-critical prose against the original accepted manifest.</p></button><button onClick={()=>go('verification')}><small>ON-CHAIN EVIDENCE</small><b>Follow the verification path</b><p>Freeze behavior, role guards, withdrawal liveness, anti-reroll, original-baseline binding and terminal completion are executed on-chain.</p><strong>Open verification path →</strong></button></div>
 </div>; }
 function Flow({n,title,text}:{n:string,title:string,text:string}) { return <div><span>{n}</span><b>{title}</b><small>{text}</small></div>; }
 
-function AgreementLoader({id,setId,load,busy,verified}:{id:string,setId:(v:string)=>void,load:()=>void,busy:boolean,verified:()=>void}) { return <div className="loader"><input placeholder="Paste finalized agreement ID" value={id} onChange={e=>setId(e.target.value)}/><button className="secondary" disabled={busy||!id} onClick={load}>Load agreement</button><button className="linkButton" onClick={verified}>Verified runtime case</button></div>; }
+function AgreementLoader({id,setId,load,busy,verified}:{id:string,setId:(v:string)=>void,load:()=>void,busy:boolean,verified:()=>void}) { return <div className="loader"><input placeholder="Paste finalized agreement ID" value={id} onChange={e=>setId(e.target.value)}/><button className="secondary" disabled={busy||!id} onClick={load}>Load agreement</button><button className="linkButton" onClick={verified}>Verified agreement</button></div>; }
 
 function ManifestEditor({value,setValue,compact=false}:{value:Manifest,setValue:(m:Manifest)=>void,compact?:boolean}) {
   const set = <K extends keyof Manifest>(k:K,v:Manifest[K])=>setValue({...value,[k]:v});
@@ -292,15 +306,15 @@ function StatusPill({status}:{status:string}){return <span className={`statusPil
 function SealCard({title,state,tone='plain'}:{title:string,state:string,tone?:string}){return <div className={`sealCard ${tone}`}><small>{title}</small><b>{state}</b></div>}
 function JsonCard({title,data}:{title:string,data:any}){return <div className="jsonCard"><div><small>{title}</small>{data&&<button onClick={()=>navigator.clipboard.writeText(JSON.stringify(data,null,2))}>Copy JSON</button>}</div><pre>{data?JSON.stringify(data,null,2):'No data loaded.'}</pre></div>}
 
-function RuntimeProof({openVerified}:{openVerified:()=>void}) { const items=[
-  ['Role boundary','Provider buyer-only actions roll back; buyer/provider permissions are separated.'],
-  ['Critical deterministic freeze','Jurisdiction and retention changes became material with model_called=false.'],
-  ['Non-bypassable handoff','Finalize while frozen rolled back HANDOFF_FROZEN_PENDING_BUYER_APPROVAL.'],
-  ['Withdrawal liveness + anti-reroll','Provider can retreat to the prior authorized manifest; withdrawn candidate stays rejected.'],
-  ['Semantic equivalent','Prose-only equivalent candidate reached EQUIVALENT_SUBSTITUTE and auto-activated.'],
-  ['Semantic material','Capability loss reached MATERIAL_SUBSTITUTION and required buyer review.'],
-  ['Original-baseline / salami proof','A follow-up change still triggered data_retention_mode because comparison remained anchored to the original.'],
-  ['Delivery binding + terminal state','Old manifest could not finalize; authorized manifest completed; later substitution rolled back.'],
-]; return <Page title="Runtime proof" subtitle="Executed contract behavior from the exact reviewed StudioNet deployment. These are not source-marker assertions."><div className="proofLayout"><div className="proofList">{items.map(([a,b],i)=><div key={a}><span>✓</span><div><small>RUNTIME {String(i+1).padStart(2,'0')}</small><b>{a}</b><p>{b}</p></div></div>)}</div><aside><div className="proofCard"><small>DEPLOYMENT</small><b>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</b><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">Open Explorer ↗</a></div><div className="proofCard"><small>SOURCE SHA256</small><code>{CONTRACT_SHA256}</code><b className="verified">Source parity proven</b></div><div className="proofCard"><small>VERIFIED AGREEMENT</small><code>{VERIFIED_AGREEMENT_ID}</code><button className="primary" onClick={openVerified}>Inspect finalized case</button></div></aside></div></Page>; }
+function VerificationPath({openVerified}:{openVerified:()=>void}) { const items=[
+  ['Role boundary','Provider buyer-only actions roll back; buyer/provider permissions remain separated.'],
+  ['Critical-field gate','Jurisdiction and retention changes became material with model_called=false.'],
+  ['Frozen handoff','Finalize while buyer approval was pending rolled back deterministically.'],
+  ['Withdrawal + anti-reroll','Provider can retreat without authorizing the candidate; the withdrawn candidate remains blocked.'],
+  ['Equivalent substitute','A prose-only equivalent candidate reached EQUIVALENT_SUBSTITUTE and auto-activated.'],
+  ['Material substitute','Capability loss reached MATERIAL_SUBSTITUTION and required buyer review.'],
+  ['Original-baseline anchor','A later change still compared against the buyer-accepted original rather than an intermediate substitute.'],
+  ['Bound completion','An old manifest could not finalize; the authorized manifest completed; post-completion substitution rolled back.'],
+]; return <Page title="Verification path" subtitle="Trace the finalized StudioNet checkpoints that support the project claims. Each checkpoint points to executed contract behavior rather than source-only assertions."><div className="verificationLayout"><div className="verificationTimeline">{items.map(([a,b],i)=><div key={a} className="verificationStep"><span>{String(i+1).padStart(2,'0')}</span><div><small>CHECKPOINT</small><b>{a}</b><p>{b}</p></div></div>)}</div><aside><div className="evidenceCard"><small>DEPLOYMENT</small><b>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</b><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">View on Explorer ↗</a></div><div className="evidenceCard"><small>SOURCE SHA256</small><code>{CONTRACT_SHA256}</code><b className="verified">Parity verified</b></div><div className="evidenceCard featured"><small>APPROVED AGREEMENT</small><code>{VERIFIED_AGREEMENT_ID}</code><button className="primary" onClick={openVerified}>Inspect finalized record</button></div></aside></div></Page>; }
 
 export default App;
