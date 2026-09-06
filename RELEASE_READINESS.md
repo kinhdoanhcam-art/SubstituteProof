@@ -34,10 +34,10 @@ Evidence is stored under `onchain-evidence/`.
 - reference agreement shortcut: YES
 - post-write finalized-state verification: YES
 - TypeScript syntax transpile: PASS
-- live Vercel build/smoke: RECHECK AFTER UI UPDATE
+- live Vercel build/smoke: **PASS** (`https://substitute-proof.vercel.app`)
 
-## Remaining before public release freeze
-1. Push this package to GitHub.
-2. Let Vercel install dependencies and run `npm run build`.
-3. Smoke-test Overview, Protocol Trace, wallet connect, reference agreement loading, and role/status rendering.
-4. Freeze the repo unless a real deployment/UI blocker appears.
+## Public release status
+- GitHub/public package: reviewer-facing and ready
+- Vercel production build/smoke: PASS
+- Contract/runtime evidence: frozen; no further runtime test required
+- Release policy: keep the repository frozen unless a real deployment/UI blocker appears

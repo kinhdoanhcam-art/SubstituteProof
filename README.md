@@ -110,7 +110,7 @@ Writes:
 - StudioNet behavioral on-chain verification: PASS
 - final frontend TS/TSX syntax transpile: PASS
 
-A dependency-installed Vite build should be rechecked on Vercel after this UI update. The production contract and StudioNet state are unchanged.
+Production Vercel build/smoke: **PASS** at `https://substitute-proof.vercel.app`. The production contract and StudioNet state are unchanged.
 
 ## Honest scope
 

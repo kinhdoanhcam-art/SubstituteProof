@@ -1,6 +1,6 @@
 # SubstituteProof — Final Runtime + UI Summary
 
-SubstituteProof is the Agent Tank idea for preventing post-agreement AI-service substitution. The buyer-accepted manifest stays immutable. Every later candidate is checked against that original baseline: critical structured changes are material deterministically, while prose-only changes use GenLayer validators for one narrow material-equivalence decision. Material changes freeze handoff until buyer action, and completion is bound to the exact authorized manifest.
+SubstituteProof prevents post-agreement AI-service substitution by binding later candidates to the original buyer-accepted manifest. The buyer-accepted manifest stays immutable. Every later candidate is checked against that original baseline: critical structured changes are material deterministically, while prose-only changes use GenLayer validators for one narrow material-equivalence decision. Material changes freeze handoff until buyer action, and completion is bound to the exact authorized manifest.
 
 ## Final deployment
 `0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10`
@@ -29,7 +29,7 @@ Final state:
 The on-chain verification covered every high-risk steward path: role boundaries, deterministic critical classification, non-bypassable freeze, withdrawal liveness, reroll prevention, semantic equivalent/material branches, buyer resolution, salami/original-baseline binding, exact delivery binding, and terminal completion.
 
 ## Frontend
-The final UI uses a web3 protocol-console system with contract green, warm amber evidence accents, layered-document motifs, and serif display typography. It exposes the real production contract path rather than a reference model.
+The final UI uses a web3 protocol-console system with a dark chain/protocol shell, bright readable work surfaces, modern sans typography, teal/cyan on-chain accents, and an agreement-to-substitute gate motif. It exposes the real production contract path and finalized StudioNet evidence.
 
 Pages:
 - Overview
@@ -47,4 +47,4 @@ The proposal workspace renders the immutable original beside the candidate and p
 - Local contract gates PASS.
 - StudioNet runtime PASS.
 - Frontend syntax PASS.
-- Vercel build/smoke should be rerun after the presentation-only UI update.
+- Production Vercel build/smoke: PASS (`https://substitute-proof.vercel.app`).

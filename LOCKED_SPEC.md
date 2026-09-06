@@ -1,6 +1,6 @@
 # SubstituteProof — Locked Spec v2
 
-## Agent Tank source-of-truth
+## Protocol source-of-truth
 
 SubstituteProof protects buyers when an AI agent/provider changes the service after a deal is accepted. The original accepted service manifest remains the immutable reference point. Deterministic critical changes are enforced directly; prose-only changes use GenLayer consensus to decide only whether the substitute remains materially equivalent. Material substitutions freeze handoff until the buyer approves.
 

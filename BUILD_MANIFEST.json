@@ -1,7 +1,7 @@
 {
   "project": "SubstituteProof",
   "version": "v2.3-protocol-ui",
-  "phase": "RUNTIME_VERIFIED_PROTOCOL_UI_READY_FOR_LIVE_SMOKE",
+  "phase": "RUNTIME_VERIFIED_PROTOCOL_UI_PUBLIC_FINAL",
   "intent": "Protect buyers from post-agreement AI-agent service substitution by keeping the original accepted manifest immutable, deterministically flagging critical changes, and using GenLayer consensus only for prose-level material equivalence.",
   "contract": {
     "path": "contracts/SubstituteProof.py",
@@ -18,7 +18,7 @@
     "mutation_matrix": "18/18 caught"
   },
   "frontend": {
-    "status": "SOURCE_COMPLETE",
+    "status": "PRODUCTION_VERIFIED",
     "stack": "Vite + React + TypeScript + genlayer-js@1.1.8",
     "visual_system": "web3 protocol console: dark chain-navigation shell, bright transaction surfaces, teal/cyan on-chain accents, agreement-to-substitute gate visualization",
     "pages": [
@@ -35,7 +35,8 @@
     "reference_agreement_embedded": true,
     "post_write_state_verification": true,
     "ts_tsx_syntax_parse": "PASS",
-    "live_vercel_smoke": "RECHECK_AFTER_UI_UPDATE"
+    "live_vercel_smoke": "PASS",
+    "production_url": "https://substitute-proof.vercel.app"
   },
   "onchain_verification": {
     "studionet": "PASS",
@@ -74,6 +75,6 @@
     "Production contract source is unchanged by this UI refresh.",
     "Create Agreement is intentionally blank by default; reference case loading remains available elsewhere.",
     "On-chain evidence records executed StudioNet behavior, not source-marker assertions.",
-    "Run one fresh Vercel build/smoke after GitHub update before release freeze."
+    "Production Vercel build/smoke passed after the protocol-console UI update; contract source and StudioNet runtime evidence remain frozen."
   ]
 }

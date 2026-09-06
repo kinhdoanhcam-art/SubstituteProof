@@ -69,4 +69,4 @@ pending_proposal_id = ""
 
 ## Frontend checks
 
-The current React/Vite source is syntax-transpiled with the installed TypeScript compiler. The previous Vercel dependency-installed build passed after replacing `String.replaceAll` with an ES2020-compatible regex replacement. This presentation-only UI refresh must receive one fresh Vercel build/smoke before final freeze.
+The current React/Vite source is syntax-transpiled with the installed TypeScript compiler. The production Vercel build/smoke after the protocol-console UI refresh is **PASS**, including the core navigation, terminal completed-state rendering, finalized-record navigation, explorer link, and clean browser console after refresh.
