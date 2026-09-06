@@ -1,18 +1,18 @@
-# SubstituteProof visual system
+# SubstituteProof public visual system
 
-SubstituteProof uses a sealed-manifest / change-control visual language rather than MeaningNonce's semantic-radar motif.
+SubstituteProof uses an editorial agreement-workspace identity rather than a generic dark dashboard.
 
-- **Primary:** deep ink green / charcoal (`#07110f`, `#0b1714`)
-- **Verification:** mint (`#55e6b4`)
-- **Buyer-review / attention:** warm amber (`#ffb66e`)
-- **Danger / blocked:** coral (`#ff7d77`)
-- **Motif:** immutable agreement sheet, baseline stamp, side-by-side manifest diff, approval seal
-- **Logo:** document / ledger grid plus an approval check, representing controlled substitution against a locked baseline
+## Visual direction
 
-The UI deliberately distinguishes:
-- original buyer-accepted manifest (always locked),
-- currently authorized manifest,
-- candidate substitute,
-- deterministic critical changes,
-- semantic-equivalence outcomes,
-- buyer-review / terminal states.
+- Background: warm paper white / soft mineral gray
+- Primary: deep contract green
+- Secondary: muted navy text
+- Evidence accent: warm amber verification stamp
+- Display typography: editorial serif headings with compact sans-serif controls
+- Core motif: layered agreement sheets, seal/stamp, baseline-to-substitute workflow
+
+## Product presentation
+
+The UI should feel like a contract review desk: quiet, legible, and procedural. The Overview emphasizes the immutable original, the four-step handoff path, and a dedicated **Verification Path** for finalized StudioNet evidence.
+
+`public/logo.svg` is the canonical project mark.

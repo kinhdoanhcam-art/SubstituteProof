@@ -67,4 +67,4 @@ Before submission, attack the exact deployed source against every item below.
 ## Final deployed verification status
 The exact v2 source was deployed to StudioNet at `0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10` and source parity was proven against SHA256 `15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41`.
 
-The final runtime case exercised the high-risk attack paths above. Material freeze, wrong-role approval, unauthorized delivered manifest, and post-completion substitution all produced the expected rollbacks. Withdrawal preserved the prior authorized manifest and rejected-candidate ledger. The salami follow-up remained material against the ORIGINAL baseline. See `runtime-evidence/STEWARD_RUNTIME_VERIFICATION.md`.
+The final runtime case exercised the high-risk attack paths above. Material freeze, wrong-role approval, unauthorized delivered manifest, and post-completion substitution all produced the expected rollbacks. Withdrawal preserved the prior authorized manifest and rejected-candidate ledger. The salami follow-up remained material against the ORIGINAL baseline. See `verification-evidence/ONCHAIN_VERIFICATION.md`.

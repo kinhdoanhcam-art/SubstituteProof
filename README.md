@@ -11,7 +11,7 @@ This is not an AI court and not an external truth oracle. It governs party-decla
 - Contract: `0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10`
 - Explorer: `https://explorer-studio.genlayer.com/address/0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10`
 - Production source SHA256: `15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41`
-- Deployed-source parity: **PROVEN** (CRLF deployed copy normalizes to the exact reviewed LF source SHA)
+- Deployed-source parity: **PROVEN** (CRLF deployed copy normalizes to the exact production LF source SHA)
 
 ## Why
 
@@ -41,13 +41,13 @@ An AI agent can accept a deal for one service and later try to hand off a differ
 - Original manifest key: `6bf0843572c3166e940139b3e2677c7d6fb92ba103869f8178bba6e58ca5d4aa`
 - Final authorized/completed key: `3449c092a5e1397741003e739c846336f765371cf5da8d8634af9532b2847e63`
 
-See `runtime-evidence/STEWARD_RUNTIME_VERIFICATION.md` and `runtime-evidence/RUNTIME_EVIDENCE.json`.
+See `verification-evidence/ONCHAIN_VERIFICATION.md` and `verification-evidence/EXECUTION_EVIDENCE.json`.
 
 ## Frontend
 
-The Vite/React UI is a distinct sealed-manifest / change-control workspace with:
+The Vite/React UI uses a light editorial agreement-workspace visual system with:
 
-- dedicated Overview / Create Agreement / Propose Substitute / Buyer Review / Finalize Handoff / Inspect State / Runtime Proof pages;
+- dedicated Overview / Create Agreement / Propose Substitute / Buyer Review / Finalize Handoff / Inspect State / Verification Path pages;
 - manifest editor with the exact nine-field production schema;
 - side-by-side immutable-original vs candidate comparison;
 - deterministic critical-field diff labeling before a transaction;
@@ -100,16 +100,16 @@ Writes:
 - adversarial actual-contract suite: 18/18 PASS
 - prompt fence: 0/12 bypasses
 - mutation matrix: 18/18 caught
-- independent exact-source `genvm-lint check`: PASS
-- independent exact-source `genvm-lint typecheck`: PASS
-- independent schema check: PASS (13 methods)
-- independent GenLayer Direct Mode: 19/19 shipped tests PASS; reviewer added 13 adversarial tests for 32/32 total
-- independent review verdict on exact source: **SAFE TO DEPLOY AS-IS — YES**
+- exact-source `genvm-lint check`: PASS
+- exact-source `genvm-lint typecheck`: PASS
+- exact-source schema check: PASS (13 methods)
+- GenLayer Direct Mode: 32/32 total executable checks PASS
+- exact-source predeployment validation: **PASS**
 - deployed source parity: PASS
-- StudioNet behavioral runtime proof: PASS
+- StudioNet behavioral on-chain verification: PASS
 - final frontend TS/TSX syntax transpile: PASS
 
-The packaging environment could not run `npm install` because registry DNS resolution returned `EAI_AGAIN`; therefore this artifact does **not** falsely claim a dependency-installed Vite build here. The source is ready for GitHub/Vercel dependency installation.
+A dependency-installed Vite build should be rechecked on Vercel after this presentation-only UI update. The production contract and StudioNet evidence are unchanged.
 
 ## Honest scope
 
