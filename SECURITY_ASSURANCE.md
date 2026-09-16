@@ -54,7 +54,7 @@ Use this checklist to challenge the exact deployed source against the protocolâ€
 - Static AST/grep checks are supplemental only.
 - Executable actual-contract tests must pass.
 - Direct Mode must pass before deployment.
-- StudioNet runtime evidence must prove observable state/rollback.
+- Runtime evidence must prove observable state/rollback on the deployment this repository targets, and must not be carried over from a previous one.
 - After deployment, source parity must be proven against the exact repository source.
 
 ## v2 liveness gate
@@ -67,4 +67,15 @@ Use this checklist to challenge the exact deployed source against the protocolâ€
 ## Final deployed verification status
 The v2 source was deployed to StudioNet at `0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10` with SHA256 `15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41`. That network and that contract are no longer the deployment this repository targets. The current source is `a4ae789c1df11853a3d40398fc2f020949c740eef0ec2d6dfc1bbb65dd52738a` on Studio Next at `0x2E07cA0D78D3Ec9D0AFa67b82df5E0570F816C78`; parity against it is established by running `npm run verify:deployed`, not asserted here.
 
-The final runtime case exercised the high-risk attack paths above. Material freeze, wrong-role approval, unauthorized delivered manifest, and post-completion substitution all produced the expected rollbacks. Withdrawal preserved the prior authorized manifest and rejected-candidate ledger. The salami follow-up remained material against the ORIGINAL baseline. See `onchain-evidence/PROTOCOL_TRACE.md`.
+The paragraph that stood here described a runtime case on the StudioNet
+contract and pointed at `onchain-evidence/PROTOCOL_TRACE.md`, a directory that
+was removed with the network migration. Both the claims and the path were
+unreachable, so they are gone.
+
+What has been executed on the current deployment is one run, `SP-DEMO-08`, whose
+nine finalized transactions and final durable state are tabulated in
+`TESTING.md`. Within that run the material freeze held, a rejected candidate
+could not buy a semantic reroll, and finalization bound to the exact authorized
+manifest. The remaining attack paths in this document are covered by the offline
+suites only; `TESTING.md` names them individually rather than implying on-chain
+coverage they do not have.

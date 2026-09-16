@@ -13,6 +13,6 @@ SubstituteProof uses a web3 protocol/change-control identity rather than an offi
 
 ## Product presentation
 
-The UI should feel like a production protocol console: readable, procedural, and chain-aware. The Overview emphasizes the immutable original baseline, substitution control path, live deployment, and dedicated **Protocol Trace** for finalized StudioNet evidence.
+The UI should feel like a production protocol console: readable, procedural, and chain-aware. The Overview emphasizes the immutable original baseline, substitution control path, live deployment, and dedicated **Protocol Trace** for the finalized run on the current deployment.
 
 `public/logo.svg` is the canonical project mark.

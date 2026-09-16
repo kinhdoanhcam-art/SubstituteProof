@@ -2,6 +2,10 @@
 
 **Post-agreement substitution control for AI-agent services.**
 
+**Demo video:** https://www.youtube.com/watch?v=v83HU4lKL0M
+**Executed run:** `SP-DEMO-08` — four proposals, two model calls, nine finalized
+transactions. Full table in [TESTING.md](TESTING.md#on-chain-verification--executed-on-this-deployment).
+
 SubstituteProof keeps the buyer-accepted service manifest as an immutable on-chain baseline. Critical structured changes are classified as material deterministically; prose-only changes use GenLayer consensus for one narrow material-equivalence question against the ORIGINAL buyer-accepted manifest. A material substitute freezes the declared handoff until the buyer approves it.
 
 This is not an AI court and not an external truth oracle. It governs party-declared manifests and the contract-routed approval/finalization path.
@@ -62,13 +66,27 @@ neither of which is shared with any other project.
 
 ## Runtime evidence
 
-None yet on this deployment. The previous evidence — agreement id, proposal
-counts, screenshots — belongs to the StudioNet contract at a different address
-and does not exist here, so it was removed rather than carried over.
+One complete run on this contract, `SP-DEMO-08`:
 
-Once a flow has been executed against the contract above, set
-`VITE_RUNTIME_AGREEMENT_ID` and `VITE_CONTRACT_SHA256`; until then the app's
-Protocol Trace page says so instead of showing figures from somewhere else.
+```text
+agreement   3c04d9a0e3a83aba0711511897713c892b39b964657456d60f0d238871251cc6
+status      COMPLETED
+proposals   4        semantic calls  2/3
+rejected    1        budget grants   0
+original    363d50ddc5…61e1846c   sealed at buyer acceptance, never changed
+active      e11d66131e…0f133f59
+```
+
+The critical-field change and the resubmitted rejected candidate were both
+classified without a model call. Only the two prose changes reached GenLayer
+consensus. The nine transaction hashes and the branches this run did **not**
+exercise are in [TESTING.md](TESTING.md).
+
+Open the app, go to **Inspect State** and paste the agreement id to read this
+state yourself — no wallet needed.
+
+Evidence from the earlier StudioNet contract was removed rather than carried
+over; it belongs to a different address on a different network.
 
 ## Frontend
 
