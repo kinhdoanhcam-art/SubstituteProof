@@ -30,6 +30,23 @@ drift from the source it verifies.
 
 An AI agent can accept a deal for one service and later try to hand off a different implementation. Comparing only to the latest version enables gradual drift. SubstituteProof always compares substitution candidates against the original accepted manifest.
 
+## Shared integration layer
+
+`src/network.ts` and `src/genlayer.ts` are the same Consensus v0.6 wallet
+adapter used across my GenLayer submissions: they connect a wallet, assert the
+chain id the SDK skips for Studio chains, read contract state, and re-read it
+after every write. They contain no protocol logic and are not claimed as novel.
+
+`src/TxGate.tsx` started from that shared adapter but is specific to this
+project: it reads the agreement's semantic budget and states, before signing,
+whether the write can consume a model call and how many remain — and refuses to
+sign when the budget is spent, instead of charging a fee for a transaction that
+would return `SEMANTIC_BUDGET_EXHAUSTED`. The fee panel inside it is GenLayer's
+own `GenLayerTransactionPanel`.
+
+The protocol lives entirely in `contracts/SubstituteProof.py` and `src/App.tsx`,
+neither of which is shared with any other project.
+
 ## Core flow
 
 1. Provider creates an agreement with buyer + declared service manifest.
