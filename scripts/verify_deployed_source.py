@@ -46,19 +46,34 @@ def canonical(data: bytes) -> bytes:
     return data[:-1] if data.endswith(b"\n") else data
 
 
-def post(payload: dict) -> dict | None:
+def post(payload: dict) -> tuple[dict | None, str]:
+    """Return (result_object, diagnostic). Never swallow the reason it failed —
+    a verification tool that hides the server's answer is useless."""
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         RPC, data=body, headers={"Content-Type": "application/json"}, method="POST"
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            obj = json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, OSError, json.JSONDecodeError):
-        return None
-    if obj.get("error") or obj.get("result") in (None, "", {}):
-        return None
-    return obj
+            text = resp.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")[:300] if exc.fp else ""
+        return None, f"HTTP {exc.code} {exc.reason} {detail}".strip()
+    except urllib.error.URLError as exc:
+        return None, f"network: {exc.reason}"
+    except OSError as exc:
+        return None, f"network: {exc}"
+
+    try:
+        obj = json.loads(text)
+    except json.JSONDecodeError:
+        return None, f"non-JSON response: {text[:300]}"
+
+    if obj.get("error"):
+        return None, f"RPC error: {json.dumps(obj['error'])[:300]}"
+    if obj.get("result") in (None, "", {}):
+        return None, f"empty result: {json.dumps(obj)[:300]}"
+    return obj, ""
 
 
 def main() -> int:
@@ -85,16 +100,25 @@ def main() -> int:
     ]
     obj = None
     mode = ""
+    diagnostics: list[str] = []
     for mode, params in attempts:
-        obj = post(
+        obj, why = post(
             {"jsonrpc": "2.0", "id": 1, "method": "gen_getContractCode", "params": params}
         )
         if obj is not None:
             break
+        diagnostics.append(f"  {mode:20s} -> {why}")
 
     if obj is None:
-        print("RPC did not return contract code.")
-        print("Kiểm tra: mạng, địa chỉ contract, và biến GENLAYER_RPC.")
+        print("RPC did not return contract code. What the server actually said:")
+        for line in diagnostics:
+            print(line)
+        print()
+        print("Cách đọc:")
+        print("  'RPC error: ... Method not found'  -> endpoint này không có gen_getContractCode;")
+        print("                                        parity phải kiểm bằng Studio UI hoặc explorer.")
+        print("  'empty result'                     -> địa chỉ không có contract trên mạng này.")
+        print("  'HTTP 4xx/5xx' hoặc 'network'      -> sai URL, firewall, hoặc mạng.")
         return 2
 
     print(f"RPC request mode: {mode}")
