@@ -1,6 +1,6 @@
 {
   "name": "substituteproof",
-  "version": "2.3.0-protocol-ui",
+  "version": "3.0.0-studio-next",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,8 @@
     "check": "npm run check:contract && npm run test:logic && npm run test:adversarial && npm run test:fence && npm run test:mutations && npm run build",
     "gate:contract": "python3.13 scripts/gate_v03_runtime.py contracts/SubstituteProof.py",
     "gate:schema": "python3.13 scripts/probe_v03_schema.py contracts/SubstituteProof.py",
-    "verify:deployed": "bash scripts/verify_deployed_source.sh"
+    "verify:deployed": "python scripts/verify_deployed_source.py",
+    "verify:deployed:sh": "bash scripts/verify_deployed_source.sh"
   },
   "dependencies": {
     "@genlayer/transaction-kit": "0.1.0-rc.2",
