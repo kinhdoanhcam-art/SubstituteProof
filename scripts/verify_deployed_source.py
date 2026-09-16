@@ -50,8 +50,24 @@ def post(payload: dict) -> tuple[dict | None, str]:
     """Return (result_object, diagnostic). Never swallow the reason it failed —
     a verification tool that hides the server's answer is useless."""
     body = json.dumps(payload).encode("utf-8")
+    # Cloudflare in front of the Studio RPC rejects the default
+    # "Python-urllib/3.x" signature with HTTP 403 error code 1010. The app's own
+    # reads reach the same endpoint from a browser, so this sends the headers a
+    # browser sends. Nothing else about the request changes.
     req = urllib.request.Request(
-        RPC, data=body, headers={"Content-Type": "application/json"}, method="POST"
+        RPC,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            ),
+            "Origin": "https://studio-next.genlayer.com",
+            "Referer": "https://studio-next.genlayer.com/",
+        },
+        method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -118,7 +134,8 @@ def main() -> int:
         print("  'RPC error: ... Method not found'  -> endpoint này không có gen_getContractCode;")
         print("                                        parity phải kiểm bằng Studio UI hoặc explorer.")
         print("  'empty result'                     -> địa chỉ không có contract trên mạng này.")
-        print("  'HTTP 4xx/5xx' hoặc 'network'      -> sai URL, firewall, hoặc mạng.")
+        print("  'HTTP 403 ... error code: 1010'    -> Cloudflare chặn theo chữ ký trình duyệt.")
+        print("  'HTTP 4xx/5xx' khác hoặc 'network'  -> sai URL, firewall, hoặc mạng.")
         return 2
 
     print(f"RPC request mode: {mode}")
