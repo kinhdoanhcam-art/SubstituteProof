@@ -72,3 +72,17 @@ body:before{content:"";position:fixed;inset:74px 0 0 252px;pointer-events:none;o
 }
 .txgate-budget b{display:block; margin:2px 0 6px; font-size:15px; color:#d7f5ec}
 .txgate-budget p{margin:0; font-size:12px; line-height:1.55; color:#8fb5ab}
+
+/* SP-UX-1/2 — a refusal the operator can act on, and a pre-flight verdict that
+   says in words whether this candidate will reach the model. */
+.blockedReason{margin:10px 0 0;padding:10px 12px;border:1px solid #e6d3b4;border-radius:9px;background:#fffaf0;color:#7a5a21;font-size:12px;line-height:1.55}
+.blockedReason b{color:#95651f;margin-right:4px}
+.candidateVerdict{display:flex;gap:14px;align-items:flex-start;border:1px solid #c9ded3;border-radius:11px;padding:13px 14px;margin:0 0 15px;background:#f4fbf7}
+.candidateVerdict.isCritical{border-color:#ead6b9;background:#fff8ed}
+.candidateVerdict>div{flex:1}
+.candidateVerdict small{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;color:#0a8064}
+.candidateVerdict.isCritical small{color:#a0641a}
+.candidateVerdict b{display:block;margin-top:6px;font-size:12.5px;line-height:1.55;color:#1c4a3d;font-weight:750}
+.candidateVerdict.isCritical b{color:#8a5a18}
+.candidateVerdict p{margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#72837c}
+.candidateVerdict .linkButton{white-space:nowrap;align-self:center}

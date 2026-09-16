@@ -60,6 +60,38 @@ function App() {
     return 'Observer';
   }, [agreement, account]);
 
+  /**
+   * SP-UX-1: a greyed-out button that does not say why is a dead end. The
+   * protocol has real reasons to refuse — wrong wallet, a candidate already
+   * awaiting the buyer, a terminal state — and the operator cannot guess which.
+   * Observed on SP-DEMO-06: "Evaluate substitute" was dark for a full step while
+   * proposal e61b256b sat unresolved, with nothing on screen saying so.
+   */
+  const proposeBlocked = useMemo(() => {
+    if (!agreement) return 'Load an agreement first.';
+    if (role !== 'Provider') return `Only the provider can propose a substitute. This wallet is ${role}; switch to ${short(agreement.provider)}.`;
+    if (agreement.status === 'BUYER_APPROVAL_REQUIRED') return `Proposal ${short(agreement.pending_proposal_id)} is waiting for the buyer. One open candidate at a time: the buyer must approve or reject it, or the provider must withdraw it, before another can be evaluated. Go to Buyer Review.`;
+    if (agreement.status === 'COMPLETED') return 'This agreement is COMPLETED. Completion is terminal — no further substitutes.';
+    if (agreement.status !== 'ACTIVE') return `Status is ${agreement.status}; a proposal requires ACTIVE.`;
+    return '';
+  }, [agreement, role]);
+
+  const finalizeBlocked = useMemo(() => {
+    if (!agreement) return 'Load an agreement first.';
+    if (agreement.status === 'COMPLETED') return 'Already COMPLETED. Completion is terminal and cannot be re-entered.';
+    if (role !== 'Provider') return `Only the provider can finalize. This wallet is ${role}; switch to ${short(agreement.provider)}.`;
+    if (agreement.status === 'BUYER_APPROVAL_REQUIRED') return `Proposal ${short(agreement.pending_proposal_id)} is still open. Resolve it in Buyer Review first.`;
+    if (agreement.status !== 'ACTIVE') return `Status is ${agreement.status}; finalize requires ACTIVE.`;
+    return '';
+  }, [agreement, role]);
+
+  const buyerBlocked = useMemo(() => {
+    if (!agreement) return '';
+    if (role === 'Buyer') return '';
+    return `Only the buyer can act here. This wallet is ${role}; switch to ${short(agreement.buyer)}.`;
+  }, [agreement, role]);
+
+
   const activeCriticalDiffs = useMemo(() => agreement ? diffManifest(agreement.original_manifest, agreement.active_manifest).filter(x => x.critical) : [], [agreement]);
   const candidateDiffs = useMemo(() => agreement ? diffManifest(agreement.original_manifest, candidate) : [], [agreement, candidate]);
   const createReady = useMemo(() => {
@@ -78,6 +110,12 @@ function App() {
       && createManifest.data_sources.length > 0
       && textFields.every(v => v.trim().length > 0);
   }, [agreementRef, buyerHex, createManifest]);
+
+  const createBlocked = useMemo(() => {
+    if (!account) return 'Connect the provider wallet before creating an agreement.';
+    if (!createReady) return 'Every field above is required, and the buyer address must be a different wallet from the provider. Nothing is prefilled by design.';
+    return '';
+  }, [account, createReady]);
 
   async function copy(value: string) {
     try { await navigator.clipboard.writeText(value); setNotice('Copied to clipboard.'); }
@@ -297,7 +335,8 @@ function App() {
           <Field label="Agreement reference" hint="A short identifier for this deal"><input placeholder="e.g. compliance-retainer-q4" value={agreementRef} onChange={e=>setAgreementRef(e.target.value)}/></Field>
           <Field label="Buyer address" hint="Must differ from the connected provider"><input placeholder="0x…" value={buyerHex} onChange={e=>setBuyerHex(e.target.value)}/></Field>
           <ManifestEditor value={createManifest} setValue={setCreateManifest}/>
-          <button className="primary" disabled={busy || !account || !createReady} onClick={create}>{busy ? 'Creating agreement…' : 'Create agreement'}</button>
+          <button className="primary" disabled={busy || !!createBlocked} onClick={create}>{busy ? 'Creating agreement…' : 'Create agreement'}</button>
+          <Blocked text={createBlocked}/>
         </section><aside><SealCard title="Signer" state={account ? `Provider · ${short(account)}` : 'Connect provider wallet'} tone="mint"/><SealCard title="Next state" state="Buyer acceptance seals the baseline" tone="amber"/><SealCard title="Protocol rule" state="Original terms remain the comparison anchor"/></aside></div>
       </Page>}
       {page === 'propose' && <Page title="Propose a substitute" subtitle="Stage a candidate against the immutable buyer-accepted original. Critical structured changes are deterministic; prose-only changes use GenLayer consensus.">
@@ -305,21 +344,23 @@ function App() {
         {agreement ? <><div className="compareHeader"><div><small>ORIGINAL BASELINE</small><b>{short(agreement.original_manifest_key,10,8)}</b></div><span>vs</span><div><small>CANDIDATE</small><b>{candidateDiffs.length ? `${candidateDiffs.length} changed field${candidateDiffs.length>1?'s':''}` : 'No differences'}</b></div></div>
           <div className="diffGrid"><ManifestRead title="Original · locked" manifest={agreement.original_manifest} locked/><ManifestEditor value={candidate} setValue={setCandidate} compact/></div>
           <DiffRail diffs={candidateDiffs}/>
+          <CandidateVerdict diffs={candidateDiffs} onReset={() => setCandidate(cloneManifest(agreement.original_manifest))} drifted={agreement.active_manifest_key !== agreement.original_manifest_key}/>
           <Field label="Proposal note" hint="Optional context. Not part of the semantic comparison."><textarea placeholder="Describe why this substitute is being proposed" value={proposalNote} onChange={e=>setProposalNote(e.target.value)}/></Field>
-          <button className="primary" disabled={busy || role !== 'Provider' || agreement.status !== 'ACTIVE'} onClick={propose}>{busy ? 'Evaluating…' : 'Evaluate substitute'}</button>
+          <button className="primary" disabled={busy || !!proposeBlocked} onClick={propose}>{busy ? 'Evaluating…' : 'Evaluate substitute'}</button>
+          <Blocked text={proposeBlocked}/>
           {proposal && <ProposalResult proposal={proposal}/>}</> : <Empty text="Load an agreement to stage a candidate."/>}
       </Page>}
       {page === 'review' && <Page title="Buyer review" subtitle="Only material substitutions require buyer action. Equivalent prose changes auto-activate by design; buyer review is reserved for material candidates.">
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={() => {setAgreementId(RUNTIME_AGREEMENT_ID); void loadAgreement(RUNTIME_AGREEMENT_ID,false);}}/>
         {agreement ? <div className="twoCol"><section className="panel">
           <AgreementSummary a={agreement} role={role}/>
-          {agreement.status === 'PENDING_BUYER_ACCEPTANCE' ? <div className="actionBlock"><h3>Buyer acceptance required</h3><p>Acceptance seals the original manifest as the immutable baseline.</p><button className="primary" disabled={busy || role!=='Buyer'} onClick={accept}>{busy ? 'Accepting…' : 'Accept original agreement'}</button></div> : agreement.status === 'BUYER_APPROVAL_REQUIRED' ? <><ProposalResult proposal={proposal}/><div className="buttonRow"><button className="primary amber" disabled={busy || role!=='Buyer'} onClick={()=>resolve('approve')}>Buyer · approve substitute</button><button className="secondary" disabled={busy || role!=='Buyer'} onClick={()=>resolve('reject')}>Buyer · reject</button><button className="ghostDanger" disabled={busy || role!=='Provider'} onClick={()=>resolve('withdraw')}>Provider · withdraw</button></div></> : <div className="actionBlock done"><h3>{agreement.status === 'COMPLETED' ? 'Agreement completed' : 'No buyer action pending'}</h3><p>{agreement.status === 'ACTIVE' ? 'The active manifest is currently authorized.' : 'Completion is terminal.'}</p></div>}
+          {agreement.status === 'PENDING_BUYER_ACCEPTANCE' ? <div className="actionBlock"><h3>Buyer acceptance required</h3><p>Acceptance seals the original manifest as the immutable baseline.</p><button className="primary" disabled={busy || role!=='Buyer'} onClick={accept}>{busy ? 'Accepting…' : 'Accept original agreement'}</button><Blocked text={buyerBlocked}/></div> : agreement.status === 'BUYER_APPROVAL_REQUIRED' ? <><ProposalResult proposal={proposal}/><div className="buttonRow"><button className="primary amber" disabled={busy || role!=='Buyer'} onClick={()=>resolve('approve')}>Buyer · approve substitute</button><button className="secondary" disabled={busy || role!=='Buyer'} onClick={()=>resolve('reject')}>Buyer · reject</button><button className="ghostDanger" disabled={busy || role!=='Provider'} onClick={()=>resolve('withdraw')}>Provider · withdraw</button></div><Blocked text={role==='Provider' ? '' : buyerBlocked}/></> : <div className="actionBlock done"><h3>{agreement.status === 'COMPLETED' ? 'Agreement completed' : 'No buyer action pending'}</h3><p>{agreement.status === 'ACTIVE' ? 'The active manifest is currently authorized.' : 'Completion is terminal.'}</p></div>}
           {agreement.status === 'ACTIVE' && role === 'Buyer' && <button className="secondary" disabled={busy || agreement.budget_grants>=5} onClick={grantBudget}>Grant +3 semantic calls</button>}
         </section><aside><ManifestRead title="Original · immutable" manifest={agreement.original_manifest} locked/><ManifestRead title="Currently authorized" manifest={agreement.active_manifest}/></aside></div> : <Empty text="Load an agreement to review buyer actions."/>}
       </Page>}
       {page === 'finalize' && <Page title="Finalize the authorized handoff" subtitle="Finalization is allowed only while ACTIVE and only when the delivered manifest hashes to the exact currently authorized manifest.">
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={() => {setAgreementId(RUNTIME_AGREEMENT_ID); void loadAgreement(RUNTIME_AGREEMENT_ID,false);}}/>
-        {agreement ? <div className="twoCol"><section className="panel"><AgreementSummary a={agreement} role={role}/><div className="bindingStrip"><span>Delivered manifest</span><b>must equal</b><span>active_manifest_key</span></div><ManifestRead title="Authorized delivery manifest" manifest={agreement.active_manifest}/><button className="primary" disabled={busy || role!=='Provider' || agreement.status!=='ACTIVE'} onClick={finalize}>{agreement.status==='COMPLETED'?'Completed':'Finalize exact authorized manifest'}</button></section><aside><SealCard title="Original key" state={short(agreement.original_manifest_key,10,8)}/><SealCard title="Active key" state={short(agreement.active_manifest_key,10,8)} tone="mint"/><SealCard title="Pending" state={agreement.pending_proposal_id ? short(agreement.pending_proposal_id) : 'None'}/></aside></div> : <Empty text="Load an agreement to verify the authorized delivery manifest."/>}
+        {agreement ? <div className="twoCol"><section className="panel"><AgreementSummary a={agreement} role={role}/><div className="bindingStrip"><span>Delivered manifest</span><b>must equal</b><span>active_manifest_key</span></div><ManifestRead title="Authorized delivery manifest" manifest={agreement.active_manifest}/><button className="primary" disabled={busy || !!finalizeBlocked} onClick={finalize}>{agreement.status==='COMPLETED'?'Completed':'Finalize exact authorized manifest'}</button><Blocked text={finalizeBlocked}/></section><aside><SealCard title="Original key" state={short(agreement.original_manifest_key,10,8)}/><SealCard title="Active key" state={short(agreement.active_manifest_key,10,8)} tone="mint"/><SealCard title="Pending" state={agreement.pending_proposal_id ? short(agreement.pending_proposal_id) : 'None'}/></aside></div> : <Empty text="Load an agreement to verify the authorized delivery manifest."/>}
       </Page>}
       {page === 'inspect' && <Page title="Inspect finalized state" subtitle="Read agreement state and proposal history directly from the deployed contract.">
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={openVerified}/>
@@ -332,6 +373,35 @@ function App() {
 }
 
 function Nav({page,id,icon,label,set}:{page:Page,id:Page,icon:string,label:string,set:(p:Page)=>void}) { return <button className={`nav ${page===id?'active':''}`} onClick={()=>set(id)}><span>{icon}</span>{label}</button>; }
+function Blocked({text}:{text:string}) { return text ? <p className="blockedReason"><b>Blocked:</b> {text}</p> : null; }
+
+/**
+ * SP-UX-2: says, in words, what the chip row above already encodes — whether
+ * this candidate will reach the model.
+ *
+ * The trap it exists to stop: the editor is hydrated from the ACTIVE manifest,
+ * but the contract always compares against the ORIGINAL. Once a critical change
+ * has been approved, the active manifest carries it forever, so a later
+ * "prose-only" edit still differs from the original on a critical field and is
+ * classified deterministically — the model is never called and the semantic
+ * counter never moves. That is exactly how SP-DEMO-06 was lost.
+ */
+function CandidateVerdict({diffs,onReset,drifted}:{diffs:ReturnType<typeof diffManifest>,onReset:()=>void,drifted:boolean}) {
+  const critical = diffs.filter(d => d.critical);
+  return <div className={'candidateVerdict' + (critical.length ? ' isCritical' : '')}>
+    <div>
+      <small>PRE-FLIGHT</small>
+      {diffs.length === 0
+        ? <b>Identical to the original — the contract will reject this as NO_CHANGE.</b>
+        : critical.length > 0
+          ? <b>{critical.length} critical field{critical.length>1?'s':''} differ from the original ({critical.map(d=>pretty(d.field)).join(', ')}) → classified deterministically. The model will NOT be called and no semantic call is spent.</b>
+          : <b>Prose-only against the original → this goes to GenLayer consensus and spends one semantic call.</b>}
+      {drifted && <p>The editor was filled from the <i>currently authorized</i> manifest, which already differs from the sealed original. Comparison is always against the original.</p>}
+    </div>
+    <button type="button" className="linkButton" onClick={onReset}>Reset to original</button>
+  </div>;
+}
+
 function StatusBar({notice,txHash,busy}:{notice:string,txHash:string,busy:boolean}) { return <div className="statusBar"><i className={busy?'pulse':''}/><small>{GENLAYER_CHAIN_NAME.toUpperCase()}</small><span>{notice}</span>{txHash && <code>{short(txHash,8,6)}</code>}</div>; }
 function Page({title,subtitle,children}:{title:string,subtitle:string,children:ReactNode}) { return <div className="page"><div className="eyebrow">SUBSTITUTEPROOF · LIVE PROTOCOL</div><h1>{title}</h1><p className="subtitle">{subtitle}</p>{children}</div>; }
 function Field({label,hint,children}:{label:string,hint?:string,children:ReactNode}) { return <label className="field"><span><b>{label}</b>{hint && <small>{hint}</small>}</span>{children}</label>; }
