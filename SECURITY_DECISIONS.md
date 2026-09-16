@@ -20,6 +20,6 @@ This document records the production decisions that materially affect safety, li
 
 The deployed contract source is frozen at SHA256:
 
-`15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41`
+`a4ae789c1df11853a3d40398fc2f020949c740eef0ec2d6dfc1bbb65dd52738a`
 
-The final StudioNet behavior and source parity are recorded under `onchain-evidence/`.
+The StudioNet evidence directory was removed with the network migration: it documented a different contract at a different address.

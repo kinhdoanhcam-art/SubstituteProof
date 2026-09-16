@@ -6,12 +6,25 @@ SubstituteProof keeps the buyer-accepted service manifest as an immutable on-cha
 
 This is not an AI court and not an external truth oracle. It governs party-declared manifests and the contract-routed approval/finalization path.
 
-## Final StudioNet deployment
+## Deployment
 
-- Contract: `0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10`
-- Explorer: `https://explorer-studio.genlayer.com/address/0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10`
-- Production source SHA256: `15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41`
-- Deployed-source parity: **PROVEN** (CRLF deployed copy normalizes to the exact production LF source SHA)
+- Network: **GenLayer Studio Next** (Consensus v0.6)
+- RPC: `https://studio-next.genlayer.com/api`
+- Chain ID: `61997`
+- Contract: `0x2E07cA0D78D3Ec9D0AFa67b82df5E0570F816C78`
+- Contract source: `contracts/SubstituteProof.py`
+- Contract SHA-256: `a4ae789c1df11853a3d40398fc2f020949c740eef0ec2d6dfc1bbb65dd52738a`
+- GenVM: `v0.3.0-rc7`, runner `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng`
+
+Deployed-source parity is a check you run, not a claim this file makes:
+
+```bash
+npm run verify:deployed
+```
+
+It fetches the deployed code over RPC and compares it against the repository
+file, computing the expected hash from that file at run time so the check cannot
+drift from the source it verifies.
 
 ## Why
 
@@ -30,18 +43,15 @@ An AI agent can accept a deal for one service and later try to hand off a differ
 9. Finalization succeeds only for the exact currently authorized manifest.
 10. `COMPLETED` is terminal.
 
-## Reference on-chain case
+## Runtime evidence
 
-- Agreement ref: `substituteproof-runtime-001`
-- Agreement ID: `791b20f01944f2e46a2ffddcd8700429ee58c4cf229e1fd4aec8eef390d87584`
-- Final state: `COMPLETED`
-- Proposals: `8`
-- Semantic calls: `2`
-- Budget grants: `0`
-- Original manifest key: `6bf0843572c3166e940139b3e2677c7d6fb92ba103869f8178bba6e58ca5d4aa`
-- Final authorized/completed key: `3449c092a5e1397741003e739c846336f765371cf5da8d8634af9532b2847e63`
+None yet on this deployment. The previous evidence — agreement id, proposal
+counts, screenshots — belongs to the StudioNet contract at a different address
+and does not exist here, so it was removed rather than carried over.
 
-See `onchain-evidence/PROTOCOL_TRACE.md` and `onchain-evidence/EXECUTION_TRACE.json`.
+Once a flow has been executed against the contract above, set
+`VITE_RUNTIME_AGREEMENT_ID` and `VITE_CONTRACT_SHA256`; until then the app's
+Protocol Trace page says so instead of showing figures from somewhere else.
 
 ## Frontend
 
@@ -55,7 +65,7 @@ The Vite/React UI uses a web3 protocol-console visual system: a dark on-chain na
 - explicit buyer/provider role awareness;
 - finalized-state postcondition verification after writes;
 - exact authorized-manifest finalization; and
-- one-click access to a reference StudioNet case and the live contract explorer.
+- one-click access to the live contract explorer.
 
 The frontend uses `genlayer-js@1.1.8` and does not treat `FINALIZED` alone as proof of successful contract execution; it verifies durable state postconditions.
 
@@ -72,7 +82,7 @@ npm run dev
 npm run build
 ```
 
-`VITE_CONTRACT_ADDRESS` defaults to the final StudioNet deployment; override it via `.env` if needed.
+`VITE_CONTRACT_ADDRESS` defaults to `0x2E07cA0D78D3Ec9D0AFa67b82df5E0570F816C78`; override it via `.env` if needed.
 
 ## Public methods
 
@@ -107,10 +117,8 @@ Writes:
 - GenLayer Direct Mode: 32/32 total executable checks PASS
 - exact-source predeployment validation: **PASS**
 - deployed source parity: PASS
-- StudioNet behavioral on-chain verification: PASS
 - final frontend TS/TSX syntax transpile: PASS
 
-Production Vercel build/smoke: **PASS** at `https://substitute-proof.vercel.app`. The production contract and StudioNet state are unchanged.
 
 ## Honest scope
 

@@ -65,6 +65,6 @@ Use this checklist to challenge the exact deployed source against the protocolâ€
 - Reused MATERIAL classifications must always return to buyer review; they must never auto-activate.
 
 ## Final deployed verification status
-The exact v2 source was deployed to StudioNet at `0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10` and source parity was proven against SHA256 `15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41`.
+The v2 source was deployed to StudioNet at `0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10` with SHA256 `15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41`. That network and that contract are no longer the deployment this repository targets. The current source is `a4ae789c1df11853a3d40398fc2f020949c740eef0ec2d6dfc1bbb65dd52738a` on Studio Next at `0x2E07cA0D78D3Ec9D0AFa67b82df5E0570F816C78`; parity against it is established by running `npm run verify:deployed`, not asserted here.
 
 The final runtime case exercised the high-risk attack paths above. Material freeze, wrong-role approval, unauthorized delivered manifest, and post-completion substitution all produced the expected rollbacks. Withdrawal preserved the prior authorized manifest and rejected-candidate ledger. The salami follow-up remained material against the ORIGINAL baseline. See `onchain-evidence/PROTOCOL_TRACE.md`.

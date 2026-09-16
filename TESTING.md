@@ -3,10 +3,10 @@
 ## Exact production contract
 
 SHA256:
-`15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41`
+`a4ae789c1df11853a3d40398fc2f020949c740eef0ec2d6dfc1bbb65dd52738a`
 
 Final deployment:
-`0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10`
+`0x2E07cA0D78D3Ec9D0AFa67b82df5E0570F816C78`
 
 ## Local executable gates — PASS
 
@@ -39,7 +39,7 @@ pytest tests/direct/ -v
 
 Recorded results: lint PASS, typecheck PASS, schema PASS (13 methods), and 32/32 Direct Mode executable checks PASS.
 
-## StudioNet on-chain verification — COMPLETED
+## On-chain verification — NOT YET RUN ON THIS DEPLOYMENT
 
 `onchain-evidence/EXECUTION_TRACE.json` and `onchain-evidence/PROTOCOL_TRACE.md` record the finalized behavioral evidence. Key executed outcomes include:
 
