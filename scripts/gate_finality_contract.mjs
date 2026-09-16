@@ -83,6 +83,38 @@ const guarded = ['create', 'accept', 'propose', 'resolve', 'grantBudget', 'final
 );
 check('[3] all six handlers take the lock', guarded.length === 6, `guarded: ${guarded.join(', ')}`);
 
+// ---- 4. no silent refusal -------------------------------------------------
+// SP-UX-1: a disabled primary action must be accompanied by a reason the
+// operator can act on. SP-DEMO-06 stalled because "Evaluate substitute" was
+// dark with nothing on screen explaining that a proposal was awaiting the buyer.
+for (const name of ['createBlocked', 'proposeBlocked', 'finalizeBlocked', 'buyerBlocked']) {
+  check(`[4] ${name} is computed`, new RegExp(`const ${name} = useMemo`).test(app));
+  check(`[4] ${name} is rendered`, new RegExp(`<Blocked text=\\{[^}]*${name}`).test(app));
+}
+check('[4] Blocked component exists', /function Blocked\(/.test(app));
+check(
+  '[4] every disabled primary action carries a reason',
+  (app.match(/<Blocked text=/g) || []).length >= 5,
+  `found ${(app.match(/<Blocked text=/g) || []).length}`,
+);
+check(
+  '[4] propose no longer hides its refusal behind a raw status test',
+  !/disabled=\{busy \|\| role !== 'Provider' \|\| agreement\.status !== 'ACTIVE'\}/.test(app),
+);
+
+// SP-UX-2: the pre-flight verdict must compare against the ORIGINAL manifest,
+// which is the contract's anchor — resetting to the ACTIVE manifest would
+// reproduce the exact drift that lost the run.
+check('[4] CandidateVerdict is rendered on the propose page', /<CandidateVerdict diffs=/.test(app));
+check(
+  '[4] "Reset to original" resets to original_manifest',
+  /setCandidate\(cloneManifest\(agreement\.original_manifest\)\)/.test(app),
+);
+check(
+  '[4] the verdict states whether the model will be called',
+  /will NOT be called/.test(app) && /spends one semantic call/.test(app),
+);
+
 for (const l of pass) console.log('PASS  ' + l);
 for (const l of fail) console.log('FAIL  ' + l);
 const total = pass.length + fail.length;
