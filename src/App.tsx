@@ -273,7 +273,7 @@ function App() {
 }
 
 function Nav({page,id,icon,label,set}:{page:Page,id:Page,icon:string,label:string,set:(p:Page)=>void}) { return <button className={`nav ${page===id?'active':''}`} onClick={()=>set(id)}><span>{icon}</span>{label}</button>; }
-function StatusBar({notice,txHash,busy}:{notice:string,txHash:string,busy:boolean}) { return <div className="statusBar"><i className={busy?'pulse':''}/><small>STUDIONET</small><span>{notice}</span>{txHash && <code>{short(txHash,8,6)}</code>}</div>; }
+function StatusBar({notice,txHash,busy}:{notice:string,txHash:string,busy:boolean}) { return <div className="statusBar"><i className={busy?'pulse':''}/><small>{GENLAYER_CHAIN_NAME.toUpperCase()}</small><span>{notice}</span>{txHash && <code>{short(txHash,8,6)}</code>}</div>; }
 function Page({title,subtitle,children}:{title:string,subtitle:string,children:ReactNode}) { return <div className="page"><div className="eyebrow">SUBSTITUTEPROOF · LIVE PROTOCOL</div><h1>{title}</h1><p className="subtitle">{subtitle}</p>{children}</div>; }
 function Field({label,hint,children}:{label:string,hint?:string,children:ReactNode}) { return <label className="field"><span><b>{label}</b>{hint && <small>{hint}</small>}</span>{children}</label>; }
 function Empty({text}:{text:string}) { return <div className="empty">{text}</div>; }
@@ -281,7 +281,7 @@ function Empty({text}:{text:string}) { return <div className="empty">{text}</div
 function Overview({openVerified,go}:{openVerified:()=>void,go:(p:Page)=>void}) { return <div className="overview page">
   <div className="hero protocolHero">
     <div className="heroCopy">
-      <div className="eyebrow">POST-AGREEMENT CHANGE CONTROL · STUDIONET</div>
+      <div className="eyebrow">POST-AGREEMENT CHANGE CONTROL · {GENLAYER_CHAIN_NAME.toUpperCase()}</div>
       <h1>Lock the original.<br/><span>Gate every substitute.</span></h1>
       <p>SubstituteProof keeps the buyer-accepted manifest as the permanent reference point. Structured critical changes freeze immediately; prose-only changes pass through one bounded material-equivalence decision.</p>
       <div className="heroActions"><button className="primary" onClick={()=>go('create')}>Create agreement</button><button className="secondary" onClick={()=>go('propose')}>Evaluate a substitute</button></div>
