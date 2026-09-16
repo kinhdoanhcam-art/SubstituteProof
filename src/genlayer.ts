@@ -124,16 +124,17 @@ export async function readString(
  * is still not a success signal on its own.
  */
 export async function writeAndFinalize(
-  client: { run: (address: `0x${string}`, method: string, args: unknown[], onHash?: (h: string) => void) => Promise<unknown> },
+  client: { run: (address: `0x${string}`, method: string, args: unknown[], onHash?: (h: string) => void, advisory?: unknown) => Promise<unknown> },
   address: `0x${string}`,
   functionName: string,
   args: unknown[],
   onHash?: (hash: string) => void,
+  advisory?: unknown,
 ) {
   if (!client || typeof client.run !== 'function') {
     throw new Error('Connect a wallet before submitting a transaction.');
   }
-  const status = await client.run(address, functionName, args, onHash);
+  const status = await client.run(address, functionName, args, onHash, advisory);
   return { hash: (status as { genlayerTxId?: string })?.genlayerTxId ?? '', receipt: status, executionVerified: false };
 }
 

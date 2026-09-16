@@ -65,3 +65,10 @@ body:before{content:"";position:fixed;inset:74px 0 0 252px;pointer-events:none;o
 }
 .txgate-close:hover{color:#fff; border-color:rgba(135,148,179,.67)}
 .txgate-note{margin:0; font-size:12px; line-height:1.55; color:#8794b3}
+
+.txgate-budget{
+  padding:12px 14px; border-radius:10px;
+  background:rgba(86,223,193,.07); border:1px solid rgba(86,223,193,.28);
+}
+.txgate-budget b{display:block; margin:2px 0 6px; font-size:15px; color:#d7f5ec}
+.txgate-budget p{margin:0; font-size:12px; line-height:1.55; color:#8fb5ab}

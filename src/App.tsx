@@ -86,13 +86,23 @@ function App() {
     finally { setBusy(false); }
   }
 
+  /** Only propose_substitution can reach the model; everything else is deterministic. */
+  function advisoryFor(name: string) {
+    if (!agreement) return undefined;
+    return {
+      callsUsed: agreement.semantic_calls_total,
+      capacity: 3 * (1 + agreement.budget_grants),
+      consumesCall: name === 'propose_substitution',
+    };
+  }
+
   async function withWrite(name: string, args: unknown[]) {
     if (!walletClient || !account) throw new Error('Connect a wallet first.');
     setBusy(true); setTxHash(''); setNotice(`Submitting ${name}…`);
     try {
       const result = await writeAndFinalize(walletClient, contractAddress, name, args, h => {
         setTxHash(h); setNotice(`Submitted ${short(h)} — waiting for the network to decide…`);
-      });
+      }, advisoryFor(name));
       setNotice(`${name} decided. Verifying durable contract state…`);
       return result;
     } finally { setBusy(false); }

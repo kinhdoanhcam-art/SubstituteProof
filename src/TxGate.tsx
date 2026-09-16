@@ -9,9 +9,31 @@ import {
 import { GENLAYER_CHAIN, GENLAYER_CHAIN_NAME } from './network';
 import { connectAccount, getProvider, switchAccount } from './genlayer';
 
+/**
+ * A pre-signature advisory, supplied by the caller.
+ *
+ * SubstituteProof is the only project here with a *bounded* AI budget: three
+ * semantic calls per grant, at most five grants, and only the buyer can grant
+ * more. The fee panel quotes GEN, but GEN is not the scarce resource for a
+ * proposal — the semantic call is. Signing blind is how a provider burns the
+ * last call on a candidate they could have withdrawn.
+ *
+ * So the gate states, before signing, whether this write can consume a call and
+ * how many remain, and refuses to sign when the budget is already spent rather
+ * than letting the user pay a fee for a transaction that returns
+ * SEMANTIC_BUDGET_EXHAUSTED.
+ */
+export type WriteAdvisory = {
+  callsUsed: number;
+  capacity: number;
+  /** true when this method can consume a semantic call. */
+  consumesCall: boolean;
+};
+
 type Pending = {
   tx: SubmitInput;
   label: string;
+  advisory?: WriteAdvisory;
   onHash?: (hash: string) => void;
   resolve: (status: TrackedStatus) => void;
   reject: (error: Error) => void;
@@ -23,6 +45,7 @@ export type GateClient = {
     method: string,
     args: unknown[],
     onHash?: (hash: string) => void,
+    advisory?: WriteAdvisory,
   ) => Promise<TrackedStatus>;
 };
 
@@ -52,11 +75,21 @@ export function useTxGate() {
     return createTransactionKit({ chain: GENLAYER_CHAIN, provider, account });
   }, [account]);
 
-  const run = useCallback<GateClient['run']>((address, method, args, onHash) => {
+  const run = useCallback<GateClient['run']>((address, method, args, onHash, advisory) => {
+    if (advisory?.consumesCall && advisory.callsUsed >= advisory.capacity) {
+      return Promise.reject(
+        new Error(
+          `Semantic budget exhausted: ${advisory.callsUsed}/${advisory.capacity} calls used. ` +
+            'This proposal would be blocked on chain, so nothing was submitted. ' +
+            'The buyer can grant three more calls.',
+        ),
+      );
+    }
     return new Promise<TrackedStatus>((resolve, reject) => {
       setPending({
         tx: { kind: 'write', address, method, args },
         label: method,
+        advisory,
         onHash,
         resolve,
         reject,
@@ -109,6 +142,20 @@ export function useTxGate() {
               Cancel
             </button>
           </div>
+
+          {pending.advisory?.consumesCall && (
+            <div className="txgate-budget">
+              <span className="txgate-eyebrow">Semantic budget</span>
+              <b>
+                {pending.advisory.callsUsed} of {pending.advisory.capacity} calls used
+              </b>
+              <p>
+                A prose-only candidate spends one call. A change to a critical field is
+                classified deterministically and spends none. Re-submitting a candidate that was
+                already adjudicated spends none either.
+              </p>
+            </div>
+          )}
 
           <GenLayerTransactionPanel
             kit={kit}
