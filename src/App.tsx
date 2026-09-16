@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { DEFAULT_CONTRACT_ADDRESS, IS_DEPLOYED, RUNTIME_AGREEMENT_ID, CONTRACT_SHA256 } from './config';
 import { GENLAYER_CHAIN_ID, GENLAYER_CHAIN_NAME, explorerAddressUrl } from './network';
 import { useTxGate } from './TxGate';
-import { readJson, readString, writeAndFinalize } from './genlayer';
+import { readJson, readJsonSettled, readString, writeAndFinalize } from './genlayer';
 import type { AgreementRecord, Manifest, ProposalRecord } from './types';
 
 type Page = 'overview' | 'create' | 'propose' | 'review' | 'finalize' | 'inspect' | 'verification';
@@ -31,7 +31,15 @@ function App() {
   const [contractAddress] = useState(DEFAULT_CONTRACT_ADDRESS);
   const [account, setAccount] = useState('');
   const [walletClient, setWalletClient] = useState<any>(null);
-  const [busy, setBusy] = useState(false);
+  // SP-BUSY-1: a plain boolean is wrong here. `create()` calls a read, then
+  // `withWrite`, which clears the flag in its own `finally` while the outer
+  // handler is still verifying — re-enabling "Create agreement" mid-flight and
+  // letting a second submission through. A depth counter cannot be unlocked by
+  // an inner scope.
+  const [busyDepth, setBusyDepth] = useState(0);
+  const busy = busyDepth > 0;
+  const enterBusy = () => setBusyDepth(d => d + 1);
+  const exitBusy = () => setBusyDepth(d => Math.max(0, d - 1));
   const [notice, setNotice] = useState(IS_DEPLOYED ? `${GENLAYER_CHAIN_NAME} ready. Connect a wallet or load an on-chain agreement.` : 'No contract address configured — set VITE_CONTRACT_ADDRESS.');
   const [txHash, setTxHash] = useState('');
   const [agreementId, setAgreementId] = useState('');
@@ -77,13 +85,13 @@ function App() {
   }
 
   async function connect() {
-    setBusy(true);
+    enterBusy();
     try {
       const x = await gate.connect();
       setAccount(x.account); setWalletClient(x.client);
       setNotice(`Wallet ${short(x.account)} connected to ${GENLAYER_CHAIN_NAME} (chain id ${GENLAYER_CHAIN_ID}).`);
     } catch (e:any) { setNotice(e?.message || String(e)); }
-    finally { setBusy(false); }
+    finally { exitBusy(); }
   }
 
   /** Only propose_substitution can reach the model; everything else is deterministic. */
@@ -98,19 +106,19 @@ function App() {
 
   async function withWrite(name: string, args: unknown[]) {
     if (!walletClient || !account) throw new Error('Connect a wallet first.');
-    setBusy(true); setTxHash(''); setNotice(`Submitting ${name}…`);
+    enterBusy(); setTxHash(''); setNotice(`Submitting ${name}…`);
     try {
       const result = await writeAndFinalize(walletClient, contractAddress, name, args, h => {
         setTxHash(h); setNotice(`Submitted ${short(h)} — waiting for the network to decide…`);
       }, advisoryFor(name));
       setNotice(`${name} decided. Verifying durable contract state…`);
       return result;
-    } finally { setBusy(false); }
+    } finally { exitBusy(); }
   }
 
   async function loadAgreement(target = agreementId, hydrateCandidate = true) {
     if (!target) { setNotice('Enter an agreement ID.'); return null; }
-    setBusy(true);
+    enterBusy();
     try {
       const data = await readJson<AgreementRecord>(contractAddress, 'get_agreement', [target]);
       if (!data) throw new Error('Agreement not found in finalized state.');
@@ -123,18 +131,18 @@ function App() {
       setNotice(`Loaded ${data.agreement_ref} · ${data.status}.`);
       return data;
     } catch (e:any) { setNotice(e?.message || String(e)); return null; }
-    finally { setBusy(false); }
+    finally { exitBusy(); }
   }
 
   async function loadProposal(id = inspectProposalId) {
     if (!id) { setNotice('Enter a proposal ID.'); return; }
-    setBusy(true);
+    enterBusy();
     try {
       const p = await readJson<ProposalRecord>(contractAddress, 'get_proposal', [id]);
       if (!p) throw new Error('Proposal not found.');
       setProposal(p); setInspectProposalId(id); setNotice(`Loaded proposal ${short(id)} · ${p.outcome}.`);
     } catch (e:any) { setNotice(e?.message || String(e)); }
-    finally { setBusy(false); }
+    finally { exitBusy(); }
   }
 
   async function openVerified() {
@@ -143,78 +151,119 @@ function App() {
   }
 
   async function create() {
+    enterBusy();
     try {
       if (!account) throw new Error('Connect the provider wallet first.');
       if (!/^0x[a-fA-F0-9]{40}$/.test(buyerHex)) throw new Error('Enter a valid buyer address.');
       if (!createReady) throw new Error('Complete every agreement field before creating the agreement.');
       const derived = await readString(contractAddress, 'derive_agreement_id', [account, buyerHex, agreementRef]);
+      // SP-ID-1: publish the id BEFORE the write. It is sha256(provider|buyer|ref),
+      // the same value create_agreement returns, so it is knowable in advance — and
+      // a run that loses it because a later read lagged is a run the operator cannot
+      // continue. The id survives every failure path below.
+      setAgreementId(derived);
+      setNotice(`Agreement ID ${derived} — keep this. Submitting create_agreement…`);
       await withWrite('create_agreement', [agreementRef, buyerHex, manifestJson(createManifest)]);
-      const data = await readJson<AgreementRecord>(contractAddress, 'get_agreement', [derived]);
-      if (!data || data.status !== 'PENDING_BUYER_ACCEPTANCE' || !eq(data.provider, account)) throw new Error('Finalized create did not produce expected agreement state.');
-      setAgreementId(derived); setAgreement(data); setCandidate(cloneManifest(data.active_manifest)); setPage('review');
-      setNotice('Agreement created and verified. Buyer acceptance is now required.');
+      const data = await readJsonSettled<AgreementRecord>(
+        contractAddress, 'get_agreement', [derived],
+        d => !!d && d.status === 'PENDING_BUYER_ACCEPTANCE',
+      );
+      if (!data) throw new Error(`create_agreement was submitted but agreement ${derived} is not readable in finalized state yet. The ID is filled in above — open Inspect State and press Load agreement in a moment. Check the explorer before resubmitting: a second create with the same reference returns AGREEMENT_ALREADY_EXISTS.`);
+      if (data.status !== 'PENDING_BUYER_ACCEPTANCE') throw new Error(`Agreement ${derived} read back as ${data.status}, expected PENDING_BUYER_ACCEPTANCE.`);
+      if (!eq(data.provider, account)) throw new Error(`Agreement ${derived} is recorded against provider ${data.provider}, not the connected wallet.`);
+      setAgreement(data); setCandidate(cloneManifest(data.active_manifest)); setPage('review');
+      setNotice(`Agreement ${short(derived)} created and verified · PENDING_BUYER_ACCEPTANCE. Buyer acceptance is now required.`);
     } catch (e:any) { setNotice(e?.message || String(e)); }
+    finally { exitBusy(); }
   }
 
   async function accept() {
+    enterBusy();
     try {
       if (!agreement) throw new Error('Load an agreement first.');
       await withWrite('accept_agreement', [agreement.agreement_id]);
-      const data = await readJson<AgreementRecord>(contractAddress, 'get_agreement', [agreement.agreement_id]);
-      if (!data || data.status !== 'ACTIVE') throw new Error('Finalized buyer acceptance did not activate the agreement.');
+      const data = await readJsonSettled<AgreementRecord>(
+        contractAddress, 'get_agreement', [agreement.agreement_id],
+        d => !!d && d.status === 'ACTIVE',
+      );
+      if (!data || data.status !== 'ACTIVE') throw new Error(`Buyer acceptance read back as ${data?.status ?? 'unreadable'}, expected ACTIVE. If the explorer shows the transaction SUCCESS/Finalized, press Load agreement again rather than signing a second time.`);
       setAgreement(data); setNotice('Buyer acceptance verified. Original manifest is now the immutable baseline.');
     } catch (e:any) { setNotice(e?.message || String(e)); }
+    finally { exitBusy(); }
   }
 
   async function propose() {
+    enterBusy();
     try {
       if (!agreement) throw new Error('Load an active agreement first.');
       const before = agreement.proposal_count;
       const oldLatest = agreement.latest_proposal_id;
       await withWrite('propose_substitution', [agreement.agreement_id, manifestJson(candidate), proposalNote]);
-      const data = await readJson<AgreementRecord>(contractAddress, 'get_agreement', [agreement.agreement_id]);
-      if (!data || data.proposal_count !== before + 1 || data.latest_proposal_id === oldLatest) throw new Error('Finalized proposal did not create exactly one new proposal.');
-      const p = await readJson<ProposalRecord>(contractAddress, 'get_proposal', [data.latest_proposal_id]);
+      const data = await readJsonSettled<AgreementRecord>(
+        contractAddress, 'get_agreement', [agreement.agreement_id],
+        d => !!d && d.proposal_count === before + 1 && d.latest_proposal_id !== oldLatest,
+      );
+      if (!data || data.proposal_count !== before + 1 || data.latest_proposal_id === oldLatest) throw new Error(`Proposal count read back as ${data?.proposal_count ?? 'unreadable'}, expected ${before + 1}. Press Load agreement before submitting again.`);
+      const p = await readJsonSettled<ProposalRecord>(
+        contractAddress, 'get_proposal', [data.latest_proposal_id], x => !!x,
+      );
       if (!p) throw new Error('Latest proposal could not be read after finalization.');
       setAgreement(data); setProposal(p); setInspectProposalId(p.proposal_id);
       setNotice(`Proposal verified: ${p.outcome}; model_called=${String(p.model_called)}.`);
     } catch (e:any) { setNotice(e?.message || String(e)); }
+    finally { exitBusy(); }
   }
 
   async function resolve(action: 'approve'|'reject'|'withdraw') {
+    enterBusy();
     try {
       if (!agreement) throw new Error('Load an agreement first.');
       const method = action === 'approve' ? 'approve_substitution' : action === 'reject' ? 'reject_substitution' : 'withdraw_substitution';
       const pending = agreement.pending_proposal_id;
       await withWrite(method, [agreement.agreement_id]);
-      const data = await readJson<AgreementRecord>(contractAddress, 'get_agreement', [agreement.agreement_id]);
-      if (!data || data.status !== 'ACTIVE' || data.pending_proposal_id !== '') throw new Error(`${method} did not restore ACTIVE state.`);
+      const data = await readJsonSettled<AgreementRecord>(
+        contractAddress, 'get_agreement', [agreement.agreement_id],
+        d => !!d && d.status === 'ACTIVE' && d.pending_proposal_id === '',
+      );
+      if (!data || data.status !== 'ACTIVE' || data.pending_proposal_id !== '') throw new Error(`${method} read back as ${data?.status ?? 'unreadable'}, expected ACTIVE with no pending proposal.`);
       setAgreement(data);
       if (pending) setProposal(await readJson<ProposalRecord>(contractAddress, 'get_proposal', [pending]));
       setCandidate(cloneManifest(data.active_manifest));
       setNotice(`${method} verified in finalized state.`);
     } catch (e:any) { setNotice(e?.message || String(e)); }
+    finally { exitBusy(); }
   }
 
   async function grantBudget() {
+    enterBusy();
     try {
       if (!agreement) throw new Error('Load an agreement first.');
       const before = agreement.budget_grants;
       await withWrite('grant_semantic_budget', [agreement.agreement_id]);
-      const data = await readJson<AgreementRecord>(contractAddress, 'get_agreement', [agreement.agreement_id]);
-      if (!data || data.budget_grants !== before + 1) throw new Error('Budget grant postcondition did not match.');
+      const data = await readJsonSettled<AgreementRecord>(
+        contractAddress, 'get_agreement', [agreement.agreement_id],
+        d => !!d && d.budget_grants === before + 1,
+      );
+      if (!data || data.budget_grants !== before + 1) throw new Error(`Budget grants read back as ${data?.budget_grants ?? 'unreadable'}, expected ${before + 1}.`);
       setAgreement(data); setNotice('Buyer semantic-budget grant verified. Existing classifications and rejected candidates remain bound.');
     } catch (e:any) { setNotice(e?.message || String(e)); }
+    finally { exitBusy(); }
   }
 
   async function finalize() {
+    enterBusy();
     try {
       if (!agreement) throw new Error('Load an agreement first.');
       await withWrite('finalize_handoff', [agreement.agreement_id, agreement.active_manifest_json]);
-      const data = await readJson<AgreementRecord>(contractAddress, 'get_agreement', [agreement.agreement_id]);
-      if (!data || data.status !== 'COMPLETED' || data.completed_manifest_key !== data.active_manifest_key) throw new Error('Finalized handoff did not bind completion to the authorized manifest.');
+      const data = await readJsonSettled<AgreementRecord>(
+        contractAddress, 'get_agreement', [agreement.agreement_id],
+        d => !!d && d.status === 'COMPLETED',
+      );
+      if (!data || data.status !== 'COMPLETED') throw new Error(`Handoff read back as ${data?.status ?? 'unreadable'}, expected COMPLETED.`);
+      if (data.completed_manifest_key !== data.active_manifest_key) throw new Error('COMPLETED, but completed_manifest_key does not equal active_manifest_key. Do not report this run as a pass.');
       setAgreement(data); setNotice('Handoff completion verified against the exact authorized manifest.');
     } catch (e:any) { setNotice(e?.message || String(e)); }
+    finally { exitBusy(); }
   }
 
   return <div className="shell">
@@ -248,7 +297,7 @@ function App() {
           <Field label="Agreement reference" hint="A short identifier for this deal"><input placeholder="e.g. compliance-retainer-q4" value={agreementRef} onChange={e=>setAgreementRef(e.target.value)}/></Field>
           <Field label="Buyer address" hint="Must differ from the connected provider"><input placeholder="0x…" value={buyerHex} onChange={e=>setBuyerHex(e.target.value)}/></Field>
           <ManifestEditor value={createManifest} setValue={setCreateManifest}/>
-          <button className="primary" disabled={busy || !account || !createReady} onClick={create}>Create agreement</button>
+          <button className="primary" disabled={busy || !account || !createReady} onClick={create}>{busy ? 'Creating agreement…' : 'Create agreement'}</button>
         </section><aside><SealCard title="Signer" state={account ? `Provider · ${short(account)}` : 'Connect provider wallet'} tone="mint"/><SealCard title="Next state" state="Buyer acceptance seals the baseline" tone="amber"/><SealCard title="Protocol rule" state="Original terms remain the comparison anchor"/></aside></div>
       </Page>}
       {page === 'propose' && <Page title="Propose a substitute" subtitle="Stage a candidate against the immutable buyer-accepted original. Critical structured changes are deterministic; prose-only changes use GenLayer consensus.">
@@ -257,14 +306,14 @@ function App() {
           <div className="diffGrid"><ManifestRead title="Original · locked" manifest={agreement.original_manifest} locked/><ManifestEditor value={candidate} setValue={setCandidate} compact/></div>
           <DiffRail diffs={candidateDiffs}/>
           <Field label="Proposal note" hint="Optional context. Not part of the semantic comparison."><textarea placeholder="Describe why this substitute is being proposed" value={proposalNote} onChange={e=>setProposalNote(e.target.value)}/></Field>
-          <button className="primary" disabled={busy || role !== 'Provider' || agreement.status !== 'ACTIVE'} onClick={propose}>Evaluate substitute</button>
+          <button className="primary" disabled={busy || role !== 'Provider' || agreement.status !== 'ACTIVE'} onClick={propose}>{busy ? 'Evaluating…' : 'Evaluate substitute'}</button>
           {proposal && <ProposalResult proposal={proposal}/>}</> : <Empty text="Load an agreement to stage a candidate."/>}
       </Page>}
       {page === 'review' && <Page title="Buyer review" subtitle="Only material substitutions require buyer action. Equivalent prose changes auto-activate by design; buyer review is reserved for material candidates.">
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={() => {setAgreementId(RUNTIME_AGREEMENT_ID); void loadAgreement(RUNTIME_AGREEMENT_ID,false);}}/>
         {agreement ? <div className="twoCol"><section className="panel">
           <AgreementSummary a={agreement} role={role}/>
-          {agreement.status === 'PENDING_BUYER_ACCEPTANCE' ? <div className="actionBlock"><h3>Buyer acceptance required</h3><p>Acceptance seals the original manifest as the immutable baseline.</p><button className="primary" disabled={busy || role!=='Buyer'} onClick={accept}>Accept original agreement</button></div> : agreement.status === 'BUYER_APPROVAL_REQUIRED' ? <><ProposalResult proposal={proposal}/><div className="buttonRow"><button className="primary amber" disabled={busy || role!=='Buyer'} onClick={()=>resolve('approve')}>Buyer · approve substitute</button><button className="secondary" disabled={busy || role!=='Buyer'} onClick={()=>resolve('reject')}>Buyer · reject</button><button className="ghostDanger" disabled={busy || role!=='Provider'} onClick={()=>resolve('withdraw')}>Provider · withdraw</button></div></> : <div className="actionBlock done"><h3>{agreement.status === 'COMPLETED' ? 'Agreement completed' : 'No buyer action pending'}</h3><p>{agreement.status === 'ACTIVE' ? 'The active manifest is currently authorized.' : 'Completion is terminal.'}</p></div>}
+          {agreement.status === 'PENDING_BUYER_ACCEPTANCE' ? <div className="actionBlock"><h3>Buyer acceptance required</h3><p>Acceptance seals the original manifest as the immutable baseline.</p><button className="primary" disabled={busy || role!=='Buyer'} onClick={accept}>{busy ? 'Accepting…' : 'Accept original agreement'}</button></div> : agreement.status === 'BUYER_APPROVAL_REQUIRED' ? <><ProposalResult proposal={proposal}/><div className="buttonRow"><button className="primary amber" disabled={busy || role!=='Buyer'} onClick={()=>resolve('approve')}>Buyer · approve substitute</button><button className="secondary" disabled={busy || role!=='Buyer'} onClick={()=>resolve('reject')}>Buyer · reject</button><button className="ghostDanger" disabled={busy || role!=='Provider'} onClick={()=>resolve('withdraw')}>Provider · withdraw</button></div></> : <div className="actionBlock done"><h3>{agreement.status === 'COMPLETED' ? 'Agreement completed' : 'No buyer action pending'}</h3><p>{agreement.status === 'ACTIVE' ? 'The active manifest is currently authorized.' : 'Completion is terminal.'}</p></div>}
           {agreement.status === 'ACTIVE' && role === 'Buyer' && <button className="secondary" disabled={busy || agreement.budget_grants>=5} onClick={grantBudget}>Grant +3 semantic calls</button>}
         </section><aside><ManifestRead title="Original · immutable" manifest={agreement.original_manifest} locked/><ManifestRead title="Currently authorized" manifest={agreement.active_manifest}/></aside></div> : <Empty text="Load an agreement to review buyer actions."/>}
       </Page>}

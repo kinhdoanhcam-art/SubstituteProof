@@ -62,6 +62,16 @@ export type GateClient = {
  * never emits a transfer, so every write goes through the panel with
  * `userValue: 0n` and none of them needs a message-allocation tree.
  *
+ * SP-RACE-1 — why `trackUntil="finalized"` and not `"decided"`:
+ * the kit's tracker returns at phase `decided`, which `isDecided()` maps from
+ * statusName ACCEPTED onward. Every read in this app passes
+ * `TransactionHashVariant.LATEST_FINAL`, which only sees FINALIZED state. With
+ * `"decided"` the caller's postcondition read fires in the ACCEPTED→FINALIZED
+ * window, `get_agreement` returns "", and a write that SUCCEEDED on chain is
+ * reported to the user as a failed postcondition with no agreement id. Observed
+ * on SP-DEMO-05: explorer SUCCESS / Finalized, UI "Finalized create did not
+ * produce expected agreement state." Gated by scripts/gate_finality_contract.mjs.
+ *
  * The kit is rebuilt whenever the account changes, so a wallet switch can never
  * sign with the previous address' quote.
  */
@@ -163,13 +173,15 @@ export function useTxGate() {
             userValue={0n}
             network={GENLAYER_CHAIN_NAME}
             theme="dark"
-            trackUntil="decided"
+            trackUntil="finalized"
             onDone={settleDone}
           />
 
           <p className="txgate-note">
-            A decided transaction is not a verdict. SubstituteProof re-reads contract state before
-            anything is reported as done.
+            Tracked to FINALIZED, not merely decided: every postcondition in this app reads
+            LATEST_FINAL, so releasing at ACCEPTED would hand the caller a read that cannot see the
+            write yet. A finalized transaction is still not a verdict — contract state is re-read
+            before anything is reported as done.
           </p>
         </div>
       </div>

@@ -13,11 +13,12 @@
     "test:mutations": "python scripts/mutation_matrix.py",
     "test:direct": "pytest tests/direct/ -v",
     "lint:genvm": "genvm-lint check contracts/SubstituteProof.py && genvm-lint schema contracts/SubstituteProof.py && genvm-lint typecheck contracts/SubstituteProof.py",
-    "check": "npm run check:contract && npm run test:logic && npm run test:adversarial && npm run test:fence && npm run test:mutations && npm run build",
+    "check": "npm run check:contract && npm run test:logic && npm run test:adversarial && npm run test:fence && npm run test:mutations && npm run gate:finality && npm run build",
     "gate:contract": "python3.13 scripts/gate_v03_runtime.py contracts/SubstituteProof.py",
     "gate:schema": "python3.13 scripts/probe_v03_schema.py contracts/SubstituteProof.py",
     "verify:deployed": "python scripts/verify_deployed_source.py",
-    "verify:deployed:sh": "bash scripts/verify_deployed_source.sh"
+    "verify:deployed:sh": "bash scripts/verify_deployed_source.sh",
+    "gate:finality": "node scripts/gate_finality_contract.mjs"
   },
   "dependencies": {
     "@genlayer/transaction-kit": "0.1.0-rc.2",

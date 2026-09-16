@@ -100,6 +100,37 @@ export async function readJson<T>(
   return JSON.parse(raw) as T;
 }
 
+/**
+ * Poll a finalized read until it satisfies `accept`, or give up and return the
+ * last value seen.
+ *
+ * `readJson` asks for LATEST_FINAL. Even with the transaction tracked to
+ * FINALIZED, the node answering the read can be one poll behind the node that
+ * reported finality, so a single immediate read is a coin flip. This never
+ * accepts a state the caller's postcondition rejects — it only refuses to call
+ * "not visible yet" the same thing as "wrong".
+ */
+export async function readJsonSettled<T>(
+  address: `0x${string}`,
+  functionName: string,
+  args: unknown[],
+  accept: (value: T | null) => boolean,
+  attempts = 12,
+  delayMs = 2000,
+): Promise<T | null> {
+  let last: T | null = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      last = await readJson<T>(address, functionName, args);
+    } catch {
+      last = null;
+    }
+    if (accept(last)) return last;
+    if (attempt < attempts - 1) await new Promise(r => setTimeout(r, delayMs));
+  }
+  return last;
+}
+
 export async function readString(
   address: `0x${string}`,
   functionName: string,
