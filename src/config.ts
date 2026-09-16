@@ -1,6 +1,24 @@
-export const DEFAULT_CONTRACT_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS || '0x5C35342ED2bCf45517F676FAAe22fDa83302Bd10') as `0x${string}`;
-export const STUDIONET_EXPLORER_URL = `https://explorer-studio.genlayer.com/address/${DEFAULT_CONTRACT_ADDRESS}`;
-export const VERIFIED_AGREEMENT_ID = '791b20f01944f2e46a2ffddcd8700429ee58c4cf229e1fd4aec8eef390d87584';
-export const VERIFIED_PROVIDER = '0x3065E31B1D993d7C0D59E6786844cBa56780B2d3';
-export const VERIFIED_BUYER = '0x86895976a0c43A9Be69b1DEd865e9726eE80BA77';
-export const CONTRACT_SHA256 = '15475702743d840b77863355833f71fa17e099a7f90070680b8d390f5f655c41';
+export const DEFAULT_CONTRACT_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS ||
+  '0x2E07cA0D78D3Ec9D0AFa67b82df5E0570F816C78') as `0x${string}`;
+
+export const IS_DEPLOYED =
+  /^0x[a-fA-F0-9]{40}$/.test(DEFAULT_CONTRACT_ADDRESS) &&
+  DEFAULT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000';
+
+/**
+ * Showcase agreement for the Verification page.
+ *
+ * The previous build hardcoded an agreement id, a provider, a buyer and a
+ * contract hash from the StudioNet deployment, and labelled the hash
+ * "Source match confirmed". On this deployment those records do not exist, so a
+ * reader following them finds nothing — the page was asserting a run that never
+ * happened here. Nothing is hardcoded now: set this only after the flow has been
+ * executed against the deployed contract, with the id that run produced.
+ */
+export const RUNTIME_AGREEMENT_ID = import.meta.env.VITE_RUNTIME_AGREEMENT_ID || '';
+
+/**
+ * sha256 of contracts/SubstituteProof.py. Displayed as a claim the reader can
+ * check with `npm run verify:deployed`, never as a verdict the app asserts.
+ */
+export const CONTRACT_SHA256 = import.meta.env.VITE_CONTRACT_SHA256 || '';

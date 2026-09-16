@@ -12,8 +12,10 @@ PATH = Path(os.environ.get("SUBSTITUTEPROOF_CONTRACT_PATH", ROOT / "contracts" /
 source = PATH.read_text(encoding="utf-8")
 errors = []
 
-EXPECTED_DEP = '# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }'
-if not source.startswith(EXPECTED_DEP):
+EXPECTED_DEP = '# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }'
+EXPECTED_PRAGMA = "# v0.3.0"
+_head = source.splitlines()[:2]
+if len(_head) < 2 or _head[0].strip() != EXPECTED_PRAGMA or _head[1].strip() != EXPECTED_DEP:
     errors.append("dependency header changed or missing")
 
 try:
@@ -60,7 +62,7 @@ markers = [
     'SEMANTIC_BUDGET_EXHAUSTED',
     'agreement["original_manifest_json"], candidate_json',
     'return material',
-    'run_nondet_unsafe',
+    'run_nondet',
     'proposal["candidate_manifest_key"]',
 ]
 for marker in markers:

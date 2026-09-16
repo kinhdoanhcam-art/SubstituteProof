@@ -1,12 +1,15 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# v0.3.0
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 
-from genlayer import *
+import genlayer as gl
+from genlayer.types import *
+from genlayer.storage import TreeMap
 import hashlib
 import json
 import re
 
 
-class SubstituteProof(gl.Contract):
+class SubstituteProof(gl.contract.Contract):
     """
     Buyer-protection primitive for declared post-agreement service substitutions.
 
@@ -81,8 +84,8 @@ class SubstituteProof(gl.Contract):
     )
 
     def __init__(self) -> None:
-        self.agreements = TreeMap()
-        self.proposals = TreeMap()
+        # v0.3 auto-allocates annotated storage; constructing TreeMap() here
+        # raises GenerationError at deploy time.
         self.agreement_count = u64(0)
         self.proposal_seq = u64(0)
 
@@ -313,7 +316,7 @@ or
                 return False
             return validator_decision == leader_decision
 
-        return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+        return gl.vm.run_nondet(leader_fn, validator_fn)
 
     @gl.public.view
     def derive_agreement_id(
@@ -367,7 +370,7 @@ or
         if self.agreements.get(agreement_id, "") != "":
             raise gl.vm.UserError("AGREEMENT_ALREADY_EXISTS")
 
-        now = gl.message_raw["datetime"]
+        now = gl.message.raw["datetime"]
         agreement_data = {
             "agreement_id": agreement_id,
             "agreement_ref": ref,
@@ -404,7 +407,7 @@ or
             raise gl.vm.UserError("ONLY_BUYER")
         if agreement["status"] != self.STATUS_PENDING_BUYER_ACCEPTANCE:
             raise gl.vm.UserError("AGREEMENT_NOT_AWAITING_ACCEPTANCE")
-        now = gl.message_raw["datetime"]
+        now = gl.message.raw["datetime"]
         agreement["status"] = self.STATUS_ACTIVE
         agreement["accepted_at"] = now
         agreement["updated_at"] = now
@@ -421,7 +424,7 @@ or
         if grants >= self.MAX_BUDGET_GRANTS:
             raise gl.vm.UserError("BUDGET_GRANT_LIMIT_REACHED")
         agreement["budget_grants"] = grants + 1
-        agreement["updated_at"] = gl.message_raw["datetime"]
+        agreement["updated_at"] = gl.message.raw["datetime"]
         self._save_agreement(agreement_id, agreement)
 
     @gl.public.write
@@ -445,7 +448,7 @@ or
         proposal_id = self._next_proposal_id(
             agreement_id, gl.message.sender_address
         )
-        now = gl.message_raw["datetime"]
+        now = gl.message.raw["datetime"]
 
         original = agreement["original_manifest"]
         original_key = agreement["original_manifest_key"]
@@ -559,7 +562,7 @@ or
         if proposal["proposal_status"] != self.PROPOSAL_BUYER_REVIEW:
             raise gl.vm.UserError("PENDING_PROPOSAL_STATE_INVALID")
 
-        now = gl.message_raw["datetime"]
+        now = gl.message.raw["datetime"]
         agreement["active_manifest"] = proposal["candidate_manifest"]
         agreement["active_manifest_json"] = proposal["candidate_manifest_json"]
         agreement["active_manifest_key"] = proposal["candidate_manifest_key"]
@@ -588,7 +591,7 @@ or
         if proposal["proposal_status"] != self.PROPOSAL_BUYER_REVIEW:
             raise gl.vm.UserError("PENDING_PROPOSAL_STATE_INVALID")
 
-        now = gl.message_raw["datetime"]
+        now = gl.message.raw["datetime"]
         rejected = agreement.get("rejected_candidates", {})
         rejected[proposal["candidate_manifest_key"]] = True
         agreement["rejected_candidates"] = rejected
@@ -617,7 +620,7 @@ or
         if proposal["proposal_status"] != self.PROPOSAL_BUYER_REVIEW:
             raise gl.vm.UserError("PENDING_PROPOSAL_STATE_INVALID")
 
-        now = gl.message_raw["datetime"]
+        now = gl.message.raw["datetime"]
         rejected = agreement.get("rejected_candidates", {})
         rejected[proposal["candidate_manifest_key"]] = True
         agreement["rejected_candidates"] = rejected
@@ -644,7 +647,7 @@ or
         if delivered_key != agreement["active_manifest_key"]:
             raise gl.vm.UserError("DELIVERED_MANIFEST_NOT_AUTHORIZED")
 
-        now = gl.message_raw["datetime"]
+        now = gl.message.raw["datetime"]
         agreement["status"] = self.STATUS_COMPLETED
         agreement["completed_manifest_key"] = delivered_key
         agreement["completed_at"] = now

@@ -58,8 +58,27 @@ class Return:
         self.calldata = calldata
 
 
+u64 = int
+
+
 class Contract:
-    pass
+    """v0.3 allocates annotated storage itself; the contract no longer does it.
+
+    Mirroring that here is what keeps this stub an executable test of the real
+    source rather than a second implementation: without it every annotated
+    TreeMap would be missing at __init__ time and the suite would fail for a
+    reason the chain never has.
+    """
+
+    def __new__(cls, *args, **kwargs):
+        instance = super().__new__(cls)
+        for klass in reversed(cls.__mro__):
+            for name, annotation in getattr(klass, "__annotations__", {}).items():
+                if annotation is TreeMap or getattr(annotation, "__origin__", None) is TreeMap:
+                    setattr(instance, name, TreeMap())
+                elif annotation is int or annotation is u64:
+                    setattr(instance, name, 0)
+        return instance
 
 
 class _Public:
@@ -94,33 +113,45 @@ def _exec_prompt(prompt, response_format=None):
     return STATE.llm_result
 
 
-def _run_nondet_unsafe(leader_fn, validator_fn):
+def _run_nondet(leader_fn, validator_fn):
     leader = leader_fn()
     if not validator_fn(Return(leader)):
         raise UserError("VALIDATOR_DISAGREEMENT")
     return leader
 
 
-gl = types.SimpleNamespace(
-    Contract=Contract,
-    public=_Public(),
-    message=_Message(),
-    message_raw={"datetime": "2026-09-05T12:00:00Z"},
-    nondet=types.SimpleNamespace(exec_prompt=_exec_prompt),
-    vm=types.SimpleNamespace(
-        UserError=UserError,
-        Return=Return,
-        run_nondet_unsafe=_run_nondet_unsafe,
-    ),
+_MESSAGE = _Message()
+_MESSAGE.raw = {"datetime": "2026-09-05T12:00:00Z"}
+
+# v0.3 shape: `import genlayer as gl` then gl.contract.Contract, gl.message.raw,
+# gl.vm.run_nondet. `from genlayer import *` no longer binds gl at all.
+gl = types.ModuleType("genlayer")
+gl.contract = types.SimpleNamespace(Contract=Contract)
+gl.public = _Public()
+gl.message = _MESSAGE
+gl.nondet = types.SimpleNamespace(exec_prompt=_exec_prompt)
+gl.vm = types.SimpleNamespace(
+    UserError=UserError,
+    Return=Return,
+    run_nondet=_run_nondet,
 )
 
-fake = types.ModuleType("genlayer")
-fake.Address = Address
-fake.TreeMap = TreeMap
-fake.u64 = int
-fake.gl = gl
-fake.__all__ = ["Address", "TreeMap", "u64", "gl"]
-sys.modules["genlayer"] = fake
+_types_mod = types.ModuleType("genlayer.types")
+_types_mod.Address = Address
+_types_mod.u64 = u64
+_types_mod.u256 = int
+_types_mod.__all__ = ["Address", "u64", "u256"]
+
+_storage_mod = types.ModuleType("genlayer.storage")
+_storage_mod.TreeMap = TreeMap
+_storage_mod.__all__ = ["TreeMap"]
+
+gl.types = _types_mod
+gl.storage = _storage_mod
+
+sys.modules["genlayer"] = gl
+sys.modules["genlayer.types"] = _types_mod
+sys.modules["genlayer.storage"] = _storage_mod
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = Path(
@@ -130,7 +161,13 @@ CONTRACT_PATH = Path(
 )
 namespace = {"__name__": "substituteproof_contract_under_test"}
 exec(
-    compile(CONTRACT_PATH.read_text(encoding="utf-8"), str(CONTRACT_PATH), "exec"),
+    compile(
+        CONTRACT_PATH.read_text(encoding="utf-8"),
+        str(CONTRACT_PATH),
+        "exec",
+        flags=0,
+        dont_inherit=True,
+    ),
     namespace,
 )
 SubstituteProof = namespace["SubstituteProof"]

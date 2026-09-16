@@ -35,3 +35,33 @@ body:before{content:"";position:fixed;inset:74px 0 0 252px;pointer-events:none;o
 @media(max-width:1180px){.protocolHero{grid-template-columns:1fr}.protocolArt{height:300px}.liveContract{grid-column:1}.heroCopy h1{font-size:50px}}
 @media(max-width:900px){body:before{left:78px}.protocolHero{padding:26px}.protocolArt{display:block;height:280px}.heroCopy h1{font-size:44px}.originalNode{left:28px}.candidateNode{right:28px}}
 @media(max-width:650px){body:before{display:none}.sidebar{background:#07191a;border-top-color:rgba(104,212,180,.14)}.protocolHero{padding:20px}.protocolArt{height:250px}.protocolNode{width:128px;min-height:112px;padding:12px}.originalNode{left:12px;top:76px}.candidateNode{right:12px;top:76px}.gateNode{width:94px}.gateNode span{width:48px;height:48px;font-size:23px}.traceLine{left:126px;right:126px}.heroCopy h1{font-size:38px}.liveContract{gap:9px;flex-wrap:wrap}.liveContract a{margin-left:0;width:100%}}
+
+/* --- Consensus v0.6 signing gate ----------------------------------------- */
+.txgate-backdrop{
+  position:fixed; inset:0; z-index:200;
+  display:flex; align-items:flex-start; justify-content:center;
+  padding:clamp(16px,5vh,56px) 16px;
+  background:rgba(4,6,12,.72); backdrop-filter:blur(6px);
+  overflow-y:auto;
+}
+.txgate-sheet{
+  width:100%; max-width:620px;
+  display:flex; flex-direction:column; gap:14px;
+  padding:20px; border-radius:16px;
+  background:#0c1018; border:1px solid rgba(135,148,179,.2);
+  box-shadow:0 24px 64px rgba(0,0,0,.55);
+}
+.txgate-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.txgate-eyebrow{
+  display:block; margin-bottom:4px;
+  font:600 10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.12em; text-transform:uppercase; color:#8794b3;
+}
+.txgate-head b{font-size:17px; letter-spacing:-.01em; color:#e8ecf5}
+.txgate-close{
+  padding:8px 14px; border-radius:8px; cursor:pointer;
+  font:500 13px/1 inherit; color:#c3cadb;
+  background:#131a27; border:1px solid rgba(135,148,179,.27);
+}
+.txgate-close:hover{color:#fff; border-color:rgba(135,148,179,.67)}
+.txgate-note{margin:0; font-size:12px; line-height:1.55; color:#8794b3}

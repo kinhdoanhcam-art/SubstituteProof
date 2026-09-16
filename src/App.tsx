@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { DEFAULT_CONTRACT_ADDRESS, STUDIONET_EXPLORER_URL, VERIFIED_AGREEMENT_ID, CONTRACT_SHA256 } from './config';
-import { connectWallet, readJson, readString, writeAndFinalize } from './genlayer';
+import { DEFAULT_CONTRACT_ADDRESS, IS_DEPLOYED, RUNTIME_AGREEMENT_ID, CONTRACT_SHA256 } from './config';
+import { GENLAYER_CHAIN_ID, GENLAYER_CHAIN_NAME, explorerAddressUrl } from './network';
+import { useTxGate } from './TxGate';
+import { readJson, readString, writeAndFinalize } from './genlayer';
 import type { AgreementRecord, Manifest, ProposalRecord } from './types';
 
 type Page = 'overview' | 'create' | 'propose' | 'review' | 'finalize' | 'inspect' | 'verification';
@@ -24,12 +26,13 @@ const eq = (a?: string, b?: string) => !!a && !!b && a.toLowerCase() === b.toLow
 const criticalFields = ['jurisdiction','model_class','max_delegation_depth','data_sources','data_retention_mode'] as const;
 
 function App() {
+  const gate = useTxGate();
   const [page, setPage] = useState<Page>('overview');
   const [contractAddress] = useState(DEFAULT_CONTRACT_ADDRESS);
   const [account, setAccount] = useState('');
   const [walletClient, setWalletClient] = useState<any>(null);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('StudioNet ready. Connect a wallet or load an on-chain agreement.');
+  const [notice, setNotice] = useState(IS_DEPLOYED ? `${GENLAYER_CHAIN_NAME} ready. Connect a wallet or load an on-chain agreement.` : 'No contract address configured — set VITE_CONTRACT_ADDRESS.');
   const [txHash, setTxHash] = useState('');
   const [agreementId, setAgreementId] = useState('');
   const [agreement, setAgreement] = useState<AgreementRecord | null>(null);
@@ -76,9 +79,9 @@ function App() {
   async function connect() {
     setBusy(true);
     try {
-      const x = await connectWallet();
+      const x = await gate.connect();
       setAccount(x.account); setWalletClient(x.client);
-      setNotice(`Wallet ${short(x.account)} connected to StudioNet.`);
+      setNotice(`Wallet ${short(x.account)} connected to ${GENLAYER_CHAIN_NAME} (chain id ${GENLAYER_CHAIN_ID}).`);
     } catch (e:any) { setNotice(e?.message || String(e)); }
     finally { setBusy(false); }
   }
@@ -88,9 +91,9 @@ function App() {
     setBusy(true); setTxHash(''); setNotice(`Submitting ${name}…`);
     try {
       const result = await writeAndFinalize(walletClient, contractAddress, name, args, h => {
-        setTxHash(h); setNotice(`Submitted ${short(h)} — waiting for finalization…`);
+        setTxHash(h); setNotice(`Submitted ${short(h)} — waiting for the network to decide…`);
       });
-      setNotice(`${name} finalized. Verifying durable contract state…`);
+      setNotice(`${name} decided. Verifying durable contract state…`);
       return result;
     } finally { setBusy(false); }
   }
@@ -125,15 +128,15 @@ function App() {
   }
 
   async function openVerified() {
-    setAgreementId(VERIFIED_AGREEMENT_ID); setPage('inspect');
-    await loadAgreement(VERIFIED_AGREEMENT_ID, false);
+    setAgreementId(RUNTIME_AGREEMENT_ID); setPage('inspect');
+    await loadAgreement(RUNTIME_AGREEMENT_ID, false);
   }
 
   async function create() {
     try {
       if (!account) throw new Error('Connect the provider wallet first.');
       if (!/^0x[a-fA-F0-9]{40}$/.test(buyerHex)) throw new Error('Enter a valid buyer address.');
-      if (!createReady) throw new Error('Complete every agreement field before creating on StudioNet.');
+      if (!createReady) throw new Error('Complete every agreement field before creating the agreement.');
       const derived = await readString(contractAddress, 'derive_agreement_id', [account, buyerHex, agreementRef]);
       await withWrite('create_agreement', [agreementRef, buyerHex, manifestJson(createManifest)]);
       const data = await readJson<AgreementRecord>(contractAddress, 'get_agreement', [derived]);
@@ -205,13 +208,14 @@ function App() {
   }
 
   return <div className="shell">
+    {gate.modal}
     <header className="topbar">
       <button className="brand" onClick={() => setPage('overview')}>
         <img src="/logo.svg" alt="SubstituteProof" />
         <span><b>Substitute<span>Proof</span></b><small>POST-AGREEMENT CHANGE CONTROL</small></span>
       </button>
       <div className="topActions">
-        <a className="contractChip" href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer"><i/> <span><small>StudioNet contract</small><b>{short(contractAddress)}</b></span><em>↗</em></a>
+        <a className="contractChip" href={explorerAddressUrl(DEFAULT_CONTRACT_ADDRESS)} target="_blank" rel="noreferrer"><i/> <span><small>{GENLAYER_CHAIN_NAME}</small><b>{short(contractAddress)}</b></span><em>↗</em></a>
         <button className="wallet" disabled={busy} onClick={connect}>{account ? `${role} · ${short(account)}` : 'Connect wallet'}</button>
       </div>
     </header>
@@ -229,16 +233,16 @@ function App() {
     <main className="main">
       <StatusBar notice={notice} txHash={txHash} busy={busy}/>
       {page === 'overview' && <Overview openVerified={openVerified} go={setPage}/>} 
-      {page === 'create' && <Page title="Create an agreement" subtitle="Declare the service terms, choose the buyer, and anchor the original manifest on StudioNet. Nothing is prefilled: the provider signs exactly what is entered.">
+      {page === 'create' && <Page title="Create an agreement" subtitle="Declare the service terms, choose the buyer, and anchor the original manifest on chain. Nothing is prefilled: the provider signs exactly what is entered.">
         <div className="twoCol"><section className="panel">
           <Field label="Agreement reference" hint="A short identifier for this deal"><input placeholder="e.g. compliance-retainer-q4" value={agreementRef} onChange={e=>setAgreementRef(e.target.value)}/></Field>
           <Field label="Buyer address" hint="Must differ from the connected provider"><input placeholder="0x…" value={buyerHex} onChange={e=>setBuyerHex(e.target.value)}/></Field>
           <ManifestEditor value={createManifest} setValue={setCreateManifest}/>
-          <button className="primary" disabled={busy || !account || !createReady} onClick={create}>Create on StudioNet</button>
+          <button className="primary" disabled={busy || !account || !createReady} onClick={create}>Create agreement</button>
         </section><aside><SealCard title="Signer" state={account ? `Provider · ${short(account)}` : 'Connect provider wallet'} tone="mint"/><SealCard title="Next state" state="Buyer acceptance seals the baseline" tone="amber"/><SealCard title="Protocol rule" state="Original terms remain the comparison anchor"/></aside></div>
       </Page>}
       {page === 'propose' && <Page title="Propose a substitute" subtitle="Stage a candidate against the immutable buyer-accepted original. Critical structured changes are deterministic; prose-only changes use GenLayer consensus.">
-        <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId)} busy={busy} verified={() => {setAgreementId(VERIFIED_AGREEMENT_ID); void loadAgreement(VERIFIED_AGREEMENT_ID);}}/>
+        <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId)} busy={busy} verified={() => {setAgreementId(RUNTIME_AGREEMENT_ID); void loadAgreement(RUNTIME_AGREEMENT_ID);}}/>
         {agreement ? <><div className="compareHeader"><div><small>ORIGINAL BASELINE</small><b>{short(agreement.original_manifest_key,10,8)}</b></div><span>vs</span><div><small>CANDIDATE</small><b>{candidateDiffs.length ? `${candidateDiffs.length} changed field${candidateDiffs.length>1?'s':''}` : 'No differences'}</b></div></div>
           <div className="diffGrid"><ManifestRead title="Original · locked" manifest={agreement.original_manifest} locked/><ManifestEditor value={candidate} setValue={setCandidate} compact/></div>
           <DiffRail diffs={candidateDiffs}/>
@@ -247,7 +251,7 @@ function App() {
           {proposal && <ProposalResult proposal={proposal}/>}</> : <Empty text="Load an agreement to stage a candidate."/>}
       </Page>}
       {page === 'review' && <Page title="Buyer review" subtitle="Only material substitutions require buyer action. Equivalent prose changes auto-activate by design; buyer review is reserved for material candidates.">
-        <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={() => {setAgreementId(VERIFIED_AGREEMENT_ID); void loadAgreement(VERIFIED_AGREEMENT_ID,false);}}/>
+        <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={() => {setAgreementId(RUNTIME_AGREEMENT_ID); void loadAgreement(RUNTIME_AGREEMENT_ID,false);}}/>
         {agreement ? <div className="twoCol"><section className="panel">
           <AgreementSummary a={agreement} role={role}/>
           {agreement.status === 'PENDING_BUYER_ACCEPTANCE' ? <div className="actionBlock"><h3>Buyer acceptance required</h3><p>Acceptance seals the original manifest as the immutable baseline.</p><button className="primary" disabled={busy || role!=='Buyer'} onClick={accept}>Accept original agreement</button></div> : agreement.status === 'BUYER_APPROVAL_REQUIRED' ? <><ProposalResult proposal={proposal}/><div className="buttonRow"><button className="primary amber" disabled={busy || role!=='Buyer'} onClick={()=>resolve('approve')}>Buyer · approve substitute</button><button className="secondary" disabled={busy || role!=='Buyer'} onClick={()=>resolve('reject')}>Buyer · reject</button><button className="ghostDanger" disabled={busy || role!=='Provider'} onClick={()=>resolve('withdraw')}>Provider · withdraw</button></div></> : <div className="actionBlock done"><h3>{agreement.status === 'COMPLETED' ? 'Agreement completed' : 'No buyer action pending'}</h3><p>{agreement.status === 'ACTIVE' ? 'The active manifest is currently authorized.' : 'Completion is terminal.'}</p></div>}
@@ -255,10 +259,10 @@ function App() {
         </section><aside><ManifestRead title="Original · immutable" manifest={agreement.original_manifest} locked/><ManifestRead title="Currently authorized" manifest={agreement.active_manifest}/></aside></div> : <Empty text="Load an agreement to review buyer actions."/>}
       </Page>}
       {page === 'finalize' && <Page title="Finalize the authorized handoff" subtitle="Finalization is allowed only while ACTIVE and only when the delivered manifest hashes to the exact currently authorized manifest.">
-        <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={() => {setAgreementId(VERIFIED_AGREEMENT_ID); void loadAgreement(VERIFIED_AGREEMENT_ID,false);}}/>
+        <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={() => {setAgreementId(RUNTIME_AGREEMENT_ID); void loadAgreement(RUNTIME_AGREEMENT_ID,false);}}/>
         {agreement ? <div className="twoCol"><section className="panel"><AgreementSummary a={agreement} role={role}/><div className="bindingStrip"><span>Delivered manifest</span><b>must equal</b><span>active_manifest_key</span></div><ManifestRead title="Authorized delivery manifest" manifest={agreement.active_manifest}/><button className="primary" disabled={busy || role!=='Provider' || agreement.status!=='ACTIVE'} onClick={finalize}>{agreement.status==='COMPLETED'?'Completed':'Finalize exact authorized manifest'}</button></section><aside><SealCard title="Original key" state={short(agreement.original_manifest_key,10,8)}/><SealCard title="Active key" state={short(agreement.active_manifest_key,10,8)} tone="mint"/><SealCard title="Pending" state={agreement.pending_proposal_id ? short(agreement.pending_proposal_id) : 'None'}/></aside></div> : <Empty text="Load an agreement to verify the authorized delivery manifest."/>}
       </Page>}
-      {page === 'inspect' && <Page title="Inspect finalized state" subtitle="Read agreement state and proposal history directly from StudioNet.">
+      {page === 'inspect' && <Page title="Inspect finalized state" subtitle="Read agreement state and proposal history directly from the deployed contract.">
         <AgreementLoader id={agreementId} setId={setAgreementId} load={() => loadAgreement(agreementId,false)} busy={busy} verified={openVerified}/>
         <div className="inspectInput"><input placeholder="Optional proposal ID" value={inspectProposalId} onChange={e=>setInspectProposalId(e.target.value)}/><button className="secondary" disabled={!inspectProposalId || busy} onClick={()=>loadProposal()}>Load proposal</button></div>
         {agreement && <><AgreementSummary a={agreement} role={role}/><div className="inspectGrid"><JsonCard title="Agreement" data={agreement}/><JsonCard title="Proposal" data={proposal}/></div></>}
@@ -290,16 +294,16 @@ function Overview({openVerified,go}:{openVerified:()=>void,go:(p:Page)=>void}) {
       <div className="protocolNode candidateNode"><small>SUBSTITUTE</small><b>CONSENT-BOUND</b><code>provider-proposed</code><i/></div>
       <div className="traceLine"/>
     </div>
-    <div className="liveContract"><div><i/><span><small>LIVE CONTRACT</small><b>StudioNet</b></span></div><code>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</code><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">Explorer ↗</a></div>
+    <div className="liveContract"><div><i/><span><small>LIVE CONTRACT</small><b>{GENLAYER_CHAIN_NAME}</b></span></div><code>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</code><a href={explorerAddressUrl(DEFAULT_CONTRACT_ADDRESS)} target="_blank" rel="noreferrer">Explorer ↗</a></div>
   </div>
   <div className="sectionLabel"><span>PROTOCOL FLOW</span><em>ORIGINAL → GATE → CONSENT → HANDOFF</em></div>
   <div className="flow"><Flow n="01" title="Anchor original" text="Buyer acceptance seals the provider-declared manifest."/><Flow n="02" title="Stage substitute" text="Every candidate is compared to the immutable original."/><Flow n="03" title="Gate material drift" text="Critical drift freezes; semantic drift is bounded by consensus."/><Flow n="04" title="Authorize handoff" text="Only the current authorized manifest can complete."/></div>
   <div className="sectionLabel"><span>PROTOCOL LAYERS</span><em>DETERMINISTIC · CONSENSUS · ON-CHAIN STATE</em></div>
-  <div className="featureGrid"><button onClick={()=>go('propose')}><small>RULE LAYER</small><b>Critical fields never reach the model</b><p>Jurisdiction, model class, delegation depth, data sources and retention changes become material deterministically.</p></button><button onClick={()=>go('review')}><small>CONSENSUS LAYER</small><b>One narrow equivalence question</b><p>Validators only judge whether non-critical prose remains materially equivalent to the original accepted manifest.</p></button><button onClick={()=>go('verification')}><small>STATE LAYER</small><b>Inspect the protocol trace</b><p>Role boundaries, freeze behavior, anti-reroll, original-baseline anchoring and terminal completion are visible from finalized StudioNet state.</p><strong>Open protocol trace →</strong></button></div>
+  <div className="featureGrid"><button onClick={()=>go('propose')}><small>RULE LAYER</small><b>Critical fields never reach the model</b><p>Jurisdiction, model class, delegation depth, data sources and retention changes become material deterministically.</p></button><button onClick={()=>go('review')}><small>CONSENSUS LAYER</small><b>One narrow equivalence question</b><p>Validators only judge whether non-critical prose remains materially equivalent to the original accepted manifest.</p></button><button onClick={()=>go('verification')}><small>STATE LAYER</small><b>Inspect the protocol trace</b><p>Role boundaries, freeze behavior, anti-reroll, original-baseline anchoring and terminal completion are visible from finalized on-chain state.</p><strong>Open protocol trace →</strong></button></div>
 </div>; }
 function Flow({n,title,text}:{n:string,title:string,text:string}) { return <div><span>{n}</span><b>{title}</b><small>{text}</small></div>; }
 
-function AgreementLoader({id,setId,load,busy,verified}:{id:string,setId:(v:string)=>void,load:()=>void,busy:boolean,verified:()=>void}) { return <div className="loader"><input placeholder="Paste finalized agreement ID" value={id} onChange={e=>setId(e.target.value)}/><button className="secondary" disabled={busy||!id} onClick={load}>Load agreement</button><button className="linkButton" onClick={verified}>Load StudioNet case</button></div>; }
+function AgreementLoader({id,setId,load,busy,verified}:{id:string,setId:(v:string)=>void,load:()=>void,busy:boolean,verified:()=>void}) { return <div className="loader"><input placeholder="Paste finalized agreement ID" value={id} onChange={e=>setId(e.target.value)}/><button className="secondary" disabled={busy||!id} onClick={load}>Load agreement</button><button className="linkButton" onClick={verified}>Load recorded case</button></div>; }
 
 function ManifestEditor({value,setValue,compact=false}:{value:Manifest,setValue:(m:Manifest)=>void,compact?:boolean}) {
   const set = <K extends keyof Manifest>(k:K,v:Manifest[K])=>setValue({...value,[k]:v});
@@ -336,6 +340,6 @@ function ProtocolTrace({openVerified}:{openVerified:()=>void}) { const items=[
   ['Material substitute','Capability loss reached MATERIAL_SUBSTITUTION and required buyer review.'],
   ['Original-baseline anchor','A later change still compared against the buyer-accepted original rather than an intermediate substitute.'],
   ['Bound completion','An old manifest could not finalize; the authorized manifest completed; post-completion substitution rolled back.'],
-]; return <Page title="Protocol trace" subtitle="Follow the finalized StudioNet state transitions that define how SubstituteProof behaves in practice."><div className="verificationLayout"><div className="verificationTimeline">{items.map(([a,b],i)=><div key={a} className="verificationStep"><span>{String(i+1).padStart(2,'0')}</span><div><small>STATE TRANSITION</small><b>{a}</b><p>{b}</p></div></div>)}</div><aside><div className="evidenceCard"><small>LIVE CONTRACT</small><b>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</b><a href={STUDIONET_EXPLORER_URL} target="_blank" rel="noreferrer">View on Explorer ↗</a></div><div className="evidenceCard"><small>CODE IDENTITY</small><code>{CONTRACT_SHA256}</code><b className="verified">Source match confirmed</b></div><div className="evidenceCard featured"><small>REFERENCE AGREEMENT</small><code>{VERIFIED_AGREEMENT_ID}</code><button className="primary" onClick={openVerified}>Open on-chain state</button></div></aside></div></Page>; }
+]; return <Page title="Protocol trace" subtitle="Follow the finalized state transitions that define how SubstituteProof behaves in practice."><div className="verificationLayout"><div className="verificationTimeline">{items.map(([a,b],i)=><div key={a} className="verificationStep"><span>{String(i+1).padStart(2,'0')}</span><div><small>STATE TRANSITION</small><b>{a}</b><p>{b}</p></div></div>)}</div><aside><div className="evidenceCard"><small>LIVE CONTRACT</small><b>{short(DEFAULT_CONTRACT_ADDRESS,12,8)}</b><a href={explorerAddressUrl(DEFAULT_CONTRACT_ADDRESS)} target="_blank" rel="noreferrer">View on Explorer ↗</a></div><div className="evidenceCard"><small>CODE IDENTITY</small><code>{CONTRACT_SHA256 || 'set VITE_CONTRACT_SHA256'}</code><b>Claimed hash — check it with <code>npm run verify:deployed</code></b></div>{RUNTIME_AGREEMENT_ID ? <div className="evidenceCard featured"><small>REFERENCE AGREEMENT</small><code>{RUNTIME_AGREEMENT_ID}</code><button className="primary" onClick={openVerified}>Open on-chain state</button></div> : <div className="evidenceCard"><small>REFERENCE AGREEMENT</small><b>No run recorded on this deployment yet.</b><p>Set <code>VITE_RUNTIME_AGREEMENT_ID</code> from a flow executed against this contract.</p></div>}</aside></div></Page>; }
 
 export default App;
